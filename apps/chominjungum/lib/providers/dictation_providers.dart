@@ -1,6 +1,61 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/dictation_models.dart';
+import '../services/bundled_dictation_loader.dart';
+import '../services/jammin_add_word_service.dart';
+import 'package:hangul_core/hangul_core.dart';
 
-/// 교사 허브에서 수신한 현재 받아쓰기 묶음 (없으면 로컬 샘플 사용).
+export '../services/bundled_dictation_loader.dart' show BundledDictationLoader;
+
+/// 기본 연습 문장.
+const kDefaultPracticeWords = ['안녕하세요', '강아지와고양이'];
+
+/// 교사 허브 수신 또는 앱 시작 시 로드한 받아쓰기 묶음.
 final dictationPackageProvider = StateProvider<DictationPackage?>((ref) => null);
+
+/// 앱에 번들된 기본 묶음 (서버 응답 스냅샷).
+final bundledDefaultPackageProvider = FutureProvider<DictationPackage>((ref) {
+  return BundledDictationLoader.load();
+});
+
+final _jamminAddWordServiceProvider = Provider<JamminAddWordService>((ref) {
+  final service = JamminAddWordService();
+  ref.onDispose(service.close);
+  return service;
+});
+
+/// 네트워크로 jammin 갱신 (선택).
+final jamminNetworkPackageProvider = FutureProvider<DictationPackage>((ref) async {
+  final service = ref.watch(_jamminAddWordServiceProvider);
+  final items = <DictationItem>[];
+  for (final word in kDefaultPracticeWords) {
+    final glyphs = await service.addWord(word);
+    items.add(DictationItem.fromGlyphs(word, glyphs));
+  }
+  return DictationPackage(version: DictationPackage.currentVersion, items: items);
+});
+
+/// 표시용: 허브/부트스트랩 캐시 > 번들 Future.
+final practicePackageProvider = Provider<AsyncValue<DictationPackage>>((ref) {
+  final cached = ref.watch(dictationPackageProvider);
+  if (cached != null && cached.items.isNotEmpty) {
+    return AsyncValue.data(cached);
+  }
+  final bundled = ref.watch(bundledDefaultPackageProvider);
+  return bundled.when(
+    data: (pkg) {
+      // 번들 로드 직후 캐시에 넣어 재진입 시 로딩 없음.
+      Future.microtask(() {
+        if (ref.read(dictationPackageProvider) == null) {
+          ref.read(dictationPackageProvider.notifier).state = pkg;
+        }
+      });
+      return AsyncValue.data(pkg);
+    },
+    loading: () => const AsyncValue.loading(),
+    error: (e, st) => AsyncValue.error(e, st),
+  );
+});
+
+List<HangulGlyph> dictationItemGlyphs(DictationItem item) =>
+    HangulUtil.glyphsFromAddWordResponse(item.expectedGlyphsJson);

@@ -19,9 +19,13 @@
 | 로컬 동기화·암호화 (`sync_protocol`) | ✅ |
 | 교사 LAN WebSocket 허브 + 학생 QR 연결 | ✅ MVP |
 | 받아쓰기 연습 (키보드 + ML Kit OCR) | ✅ MVP |
+| 받아쓰기 손글씨 캔버스 (SVG 가이드 + 셀별 펜) | ✅ (성능 최적화 1차) |
 | Android `student` / `teacher` flavor | ✅ |
 | iOS 빌드 (Podfile, iOS 15.5+) | ✅ (시뮬레이터 런타임은 Xcode에서 별도 설치) |
-| jammin SVG·도담도담체 폰트 | ⏳ 미연동 |
+| jammin SVG (받아쓰기 가이드) | ✅ 번들 (`assets/hangul/*.svg`) |
+| jammin 도담도담체 폰트 | ⏳ 미연동 |
+| 학생 손글씨 → OCR/채점 연결 | ⏳ 셀별 stroke만 있고 인식·채점 미연동 |
+| 학생 답안 → 교사 전송 (`attempt.submit`) | ⏳ 프로토콜만 정의 |
 | 로그인·학급 DB·AI 출제·부모 모드 | ⏳ [PLAN.md](PLAN.md) 참고 |
 
 상세 로드맵·디자인 토큰은 [PLAN.md](PLAN.md)를 참고하세요.
@@ -117,7 +121,7 @@ iOS는 flavor 없이 엔트리(`main.dart` / `main_teacher.dart`)로 역할을 �
 | 앱 | Flutter 3.x, Dart 3.5+ |
 | UI | Material 3 (jammin 골든 옐로우 톤) |
 | 상태·라우팅 | Riverpod, go_router |
-| 로컬 저장 | Hive, flutter_secure_storage |
+| 로컬 저장 | Hive (초기화만), flutter_secure_storage (기기 ID) |
 | 동기화 | shelf + web_socket_channel, sync_protocol + cryptography |
 | OCR | google_mlkit_text_recognition, image_picker |
 | QR | qr_flutter, mobile_scanner |
@@ -198,14 +202,61 @@ cd ios && pod install && cd .. && flutter run -d ios
 
 jammin의 **SVG 획순·도담도담체** 등 자산은 추후 번들 예정입니다.
 
-## 향후 계획 (미구현)
+## 알려진 제한 (MVP)
 
-- TTS 받아쓰기, 획순 연습, AI 출제·글씨 교정 (교사 기기 옵션)
-- 학급·학습 이력 Hive/DB 영속화, 부모 모드
-- 오프라인 QR/파일 번들, iOS flavor 정리
-- (선택) jammin 웹 API 연동 — 개발·검증용
+- 학생 **채점 결과가 교사 기기로 전송되지 않음** (`attempt.submit` 프로토콜만 정의)
+- 학습 이력 **Hive Box 미구현** (init만 됨)
+- QR에 **세션 키가 평문**으로 포함 (`ws://` 평문 WebSocket)
+- API 키·외부 AI **미연동**
 
-→ [PLAN.md](PLAN.md)
+## 향후 계획
+
+단계별 작업 목록·완료 기준은 **[PLAN.md](PLAN.md)** 를 참고하세요.
+
+| 단계 | 요약 |
+|------|------|
+| Phase 1 | 답안 제출·교사 확인, 이력 저장, 보안·UX 마무리 |
+| Phase 2 | TTS, 획순, OCR·다문항, (선택) AI |
+| Phase 3 | 학급·통계, 오프라인 번들, 부모 모드 |
+| Phase 4 | 스토어 배포, jammin 자산·PDF |
+
+## 작업 로그 — 받아쓰기 캔버스 (2026-05-19)
+
+받아쓰기 화면의 셀별 손글씨 캔버스를 처음으로 실사용 가능 수준으로 만들었습니다.
+
+**원인이 됐던 핵심 버그**: `HangulWritingWorksheet.didUpdateWidget`이 `glyphs` List를 reference(`!=`)로 비교 → `dictationItemGlyphs(item)`이 매번 새 List라 모든 `setState`마다 `_resetGlyphs()` → cell GlobalKey 새로 생성 → cell State(점·strokes) 즉시 reset. cell의 콜백은 호출되는데도 화면에는 항상 빈 캔버스로 보임. `listEquals` 비교로 수정.
+
+**셀(`HangulWritingCell`) 최종 구조**
+
+| 레이어 | 책임 | 비고 |
+|--------|------|------|
+| `GestureDetector(HitTestBehavior.opaque)` | tap/pan 수신 | parent scroll보다 우선 |
+| `Container(border + white)` | 셀 배경 + 선택 강조 | brand 색 굵은 테두리 |
+| `RepaintBoundary > IgnorePointer > HangulGlyphCell` | jammin SVG 초·중·종 가이드 | stroke 변경 시 repaint 0 |
+| `RepaintBoundary > IgnorePointer > CustomPaint(_StrokePainter, repaint: ChangeNotifier)` | 학생 stroke 페인터 | cell rebuild 없이 paint만 trigger |
+
+**성능 최적화**
+
+- `CustomPainter(repaint: Listenable)` 직접 wiring → `ValueListenableBuilder` 제거, element rebuild 0
+- `Paint` 객체 `static final`로 1회 생성
+- stroke point sampling (`distanceSquared < 1.0` skip) — paint 부담 절반↓
+- `onTapUp`에서 점(dot) 처리 — `PanGestureRecognizer` slop(18px)에 못 미치는 짧은 터치도 점으로 찍힘
+- `onSelected` 중복 `setState` 차단 (cell + worksheet 양쪽)
+
+## 다음 작업 (Next Up)
+
+받아쓰기 캔버스 본체는 안정화됐고, 다음 단계는 OCR/제출 파이프라인과 마감 작업입니다.
+
+- [ ] 셀별 stroke를 PNG로 export → 기존 `ml_kit` OCR 파이프라인에 투입 → cell별 인식 결과를 jammin 채점에 합치기
+- [ ] 학생 채점 완료 → `SyncMessageTypes.attemptSubmit`으로 교사 허브 전송 (`PLAN.md` 1.1)
+- [ ] 교사 화면: 접속 학생 수·최근 제출·점수 요약 카드
+- [ ] Hive Box 설계 + 본인 시도 이력 로컬 저장 (`PLAN.md` 1.2)
+- [ ] 받아쓰기 전용 결과 화면 (오답 글자 하이라이트)
+- [ ] KCC 도담도담체 폰트 등록 + `assets/fonts/KCCDodamdodamR.ttf` 적용
+- [ ] 받아쓰기 화면 `_dictationMode` 토글(가이드 on/off) UX 마무리
+- [ ] (선택) 완료된 stroke들을 `ui.Picture`로 cache — 현재 그리는 stroke만 새로 그리는 한 단계 더 강한 최적화
+- [ ] (선택) Impeller 끄고 Skia로 비교 (Lenovo 태블릿 stutter 검증)
+- [ ] 디버그 흔적 점검 (`debugPrint`, 빨간색 페인터 잔여물 등 grep)
 
 ## 라이선스
 

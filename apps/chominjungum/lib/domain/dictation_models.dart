@@ -21,7 +21,19 @@ class DictationItem {
   final String? promptAudioUrl;
 
   factory DictationItem.fromExpectedText(String expectedText, {String? id}) {
-    final glyphs = HangulUtil.hangulSplit(expectedText);
+    return DictationItem.fromGlyphs(
+      expectedText,
+      HangulUtil.hangulSplit(expectedText),
+      id: id,
+    );
+  }
+
+  /// jammin `POST /addWord` 응답 glyphs 저장.
+  factory DictationItem.fromGlyphs(
+    String expectedText,
+    List<HangulGlyph> glyphs, {
+    String? id,
+  }) {
     final jsonList = glyphs.map((g) => g.toJson()).toList();
     final glyphsJson = jsonEncode(jsonList);
     final hash = sha256.convert(utf8.encode(expectedText)).toString();

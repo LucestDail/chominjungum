@@ -5,7 +5,5 @@ description: 초민정음 MK2 — Flutter 모노레포 (hangul_core, sync_protoc
 environment:
   sdk: ">=3.5.0 <5.0.0"
 
-workspace:
-  - packages/hangul_core
-  - packages/sync_protocol
-  - apps/chominjungum
+# path 의존 모노레포. pub workspace는 Flutter Android 빌드와 충돌해 사용하지 않음.
+# 패키지별로 `dart pub get` / 앱은 `apps/chominjungum`에서 `flutter pub get`.

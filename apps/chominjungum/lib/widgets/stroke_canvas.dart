@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/jammin_tokens.dart';
+
 /// 받아쓰기 손글씨 캔버스 (여러 스트로크).
 class StrokeCanvas extends StatefulWidget {
   const StrokeCanvas({
@@ -64,7 +66,7 @@ class _StrokePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.black87
+      ..color = JamminTokens.brandDark
       ..strokeWidth = 5
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;

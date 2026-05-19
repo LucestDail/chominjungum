@@ -3,8 +3,6 @@ description: 초민정음 MK2 — jammin 연계 모바일 (교사 허브·로컬
 publish_to: 'none'
 version: 1.0.0+1
 
-resolution: workspace
-
 environment:
   sdk: ">=3.5.0 <5.0.0"
 
@@ -33,6 +31,8 @@ dependencies:
   network_info_plus: ^6.1.4
   image_picker: ^1.1.2
   crypto: ^3.0.6
+  flutter_svg: ^2.0.17
+  http: ^1.2.2
 
 dev_dependencies:
   flutter_test:
@@ -41,3 +41,11 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/hangul/
+    - assets/images/
+    - assets/data/default_dictation.json
+  fonts:
+    - family: KCCDodamdodamR
+      fonts:
+        - asset: assets/fonts/KCCDodamdodamR.ttf

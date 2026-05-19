@@ -50,4 +50,6 @@ android {
 
 flutter {
     source = ".."
+    // Gradle projectDir이 android/일 때 엔트리 경로 (상위 앱 lib)
+    target = "../lib/main.dart"
 }

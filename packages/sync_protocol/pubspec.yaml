@@ -2,8 +2,6 @@ name: sync_protocol
 description: 교사 기기 로컬 허브용 동기화 메시지·페어링·암호화 envelope (순수 Dart)
 version: 0.1.0
 publish_to: none
-resolution: workspace
-
 environment:
   sdk: ">=3.5.0 <5.0.0"
 

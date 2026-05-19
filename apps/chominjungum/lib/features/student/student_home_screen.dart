@@ -10,6 +10,11 @@ import 'package:sync_protocol/sync_protocol.dart';
 
 import '../../providers/dictation_providers.dart';
 import '../../services/local_hub_service.dart';
+import '../../theme/jammin_tokens.dart';
+import '../../widgets/jammin/jammin_brand_title.dart';
+import '../../widgets/jammin/jammin_scaffold.dart';
+import '../../widgets/jammin/jammin_section.dart';
+import '../../widgets/jammin/jammin_status_banner.dart';
 
 /// 학생: QR 스캔 또는 페이로드 붙여넣기로 허브 연결.
 class StudentHomeScreen extends ConsumerStatefulWidget {
@@ -23,6 +28,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
   final _paste = TextEditingController();
   StudentHubClient? _client;
   String? _status;
+  JamminStatusTone _statusTone = JamminStatusTone.info;
 
   @override
   void dispose() {
@@ -34,13 +40,23 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
     super.dispose();
   }
 
+  void _setStatus(String msg, {JamminStatusTone tone = JamminStatusTone.info}) {
+    setState(() {
+      _status = msg;
+      _statusTone = tone;
+    });
+  }
+
   Future<void> _connectFromPayloadString(String raw) async {
-    setState(() => _status = '연결 중…');
+    _setStatus('연결 중…');
     try {
       final payload = SessionPairingPayload.decode(raw.trim());
       final host = payload.hubHost?.trim();
       if (host == null || host.isEmpty) {
-        setState(() => _status = 'QR에 hubHost(IP)가 없습니다. 교사 기기에서 IP를 확인하세요.');
+        _setStatus(
+          'QR에 hubHost(IP)가 없습니다. 교사 기기에서 IP를 확인하세요.',
+          tone: JamminStatusTone.error,
+        );
         return;
       }
       final keyBytes = Uint8List.fromList(base64Decode(payload.publicKeyB64));
@@ -54,70 +70,102 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
           final pkg = tryDecodeDictationPackage(plain, env);
           if (pkg != null && mounted) {
             ref.read(dictationPackageProvider.notifier).state = pkg;
-            setState(() => _status = '문제 수신. 학습 화면으로 이동합니다.');
+            _setStatus('문제 수신. 학습 화면으로 이동합니다.', tone: JamminStatusTone.success);
             context.push('/practice');
           }
         },
       );
       if (mounted) {
-        setState(() => _status = '허브에 연결됨. 교사가 문제를 내면 자동으로 열립니다.');
+        _setStatus('허브에 연결됨. 교사가 문제를 내면 자동으로 열립니다.', tone: JamminStatusTone.success);
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _status = '연결 실패: $e');
+        _setStatus('연결 실패: $e', tone: JamminStatusTone.error);
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('초민정음 · 학생')),
+    final bundled = ref.watch(dictationPackageProvider);
+    final wordCount = bundled?.items.length ?? 0;
+
+    return JamminScaffold(
+      titleWidget: const JamminBrandTitle(subtitle: '학생'),
       body: ListView(
-        padding: const EdgeInsets.all(20),
         children: [
-          Text('교사 QR 스캔', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 260,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: MobileScanner(
-                onDetect: (capture) {
-                  for (final b in capture.barcodes) {
-                    final v = b.rawValue;
-                    if (v != null && v.trim().startsWith('{')) {
-                      unawaited(_connectFromPayloadString(v));
-                      break;
-                    }
-                  }
-                },
-              ),
+          const JamminSectionHeader(
+            heading: '학생 연결',
+            subheading: '교사 QR을 스캔하거나 페이로드를 붙여넣으세요.',
+          ),
+          const SizedBox(height: 28),
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  color: JamminTokens.brandSoft,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Text(
+                    'QR 스캔',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                SizedBox(
+                  height: 260,
+                  child: MobileScanner(
+                    onDetect: (capture) {
+                      for (final b in capture.barcodes) {
+                        final v = b.rawValue;
+                        if (v != null && v.trim().startsWith('{')) {
+                          unawaited(_connectFromPayloadString(v));
+                          break;
+                        }
+                      }
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 24),
-          Text('또는 페이로드 붙여넣기', style: Theme.of(context).textTheme.titleSmall),
+          Text(
+            '페이로드 붙여넣기',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           TextField(
             controller: _paste,
             maxLines: 4,
             decoration: const InputDecoration(
               labelText: 'SessionPairingPayload JSON',
+              alignLabelWithHint: true,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           FilledButton(
             onPressed: () => _connectFromPayloadString(_paste.text),
             child: const Text('연결'),
           ),
           if (_status != null) ...[
-            const SizedBox(height: 16),
-            Text(_status!),
+            const SizedBox(height: 20),
+            JamminStatusBanner(message: _status!, tone: _statusTone),
           ],
+          const SizedBox(height: 32),
+          const Divider(),
           const SizedBox(height: 24),
-          FilledButton.tonal(
-            onPressed: () => context.push('/practice'),
-            child: const Text('로컬 샘플 받아쓰기 열기'),
+          JamminSectionHeader(
+            heading: '연습',
+            subheading: wordCount > 0
+                ? '안녕하세요 · 강아지와고양이 (앱 번들, $wordCount문항)'
+                : '데이터 로딩 중…',
+            center: false,
+          ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: wordCount > 0 ? () => context.push('/practice') : null,
+            child: const Text('받아쓰기 연습 열기'),
           ),
         ],
       ),

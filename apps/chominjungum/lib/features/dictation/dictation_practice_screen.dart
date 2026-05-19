@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hangul_core/hangul_core.dart';
 
 import '../../domain/dictation_models.dart';
 import '../../providers/dictation_providers.dart';
-import '../../services/device_binding_id.dart';
-import '../../services/ocr_service.dart';
-import '../../widgets/stroke_canvas.dart';
-import '../../widgets/stroke_raster.dart';
+import '../../theme/jammin_tokens.dart';
+import '../../widgets/hangul_writing_worksheet.dart';
+import '../../widgets/jammin/jammin_brand_title.dart';
+import '../../widgets/jammin/jammin_print_header.dart';
+import '../../widgets/jammin/jammin_scaffold.dart';
+import '../../widgets/jammin/jammin_worksheet_box.dart';
 
-/// 받아쓰기 MVP: 키보드 채점 + 캔버스/갤러리 OCR → [hangul_core] 채점.
+/// jammin 받아쓰기: 번들/허브 자모 + 지험지 위 손글씨.
 class DictationPracticeScreen extends ConsumerStatefulWidget {
   const DictationPracticeScreen({super.key});
 
@@ -18,196 +19,163 @@ class DictationPracticeScreen extends ConsumerStatefulWidget {
 }
 
 class _DictationPracticeScreenState extends ConsumerState<DictationPracticeScreen> {
-  final _keyboard = TextEditingController();
-  List<List<Offset>> _strokes = [];
-  int _canvasKey = 0;
-  DictationScoreResult? _keyboardScore;
-  DictationScoreResult? _ocrScore;
-  String? _ocrText;
-  bool _busy = false;
+  final _worksheetKeys = <GlobalKey<HangulWritingWorksheetState>>[];
+  HangulWriteTool _tool = HangulWriteTool.pen;
+  bool _dictationMode = false;
 
-  DictationItem _itemFromPackage(DictationPackage? pkg) {
-    if (pkg != null && pkg.items.isNotEmpty) {
-      return pkg.items.first;
+  GlobalKey<HangulWritingWorksheetState> _keyForIndex(int index) {
+    while (_worksheetKeys.length <= index) {
+      _worksheetKeys.add(GlobalKey<HangulWritingWorksheetState>());
     }
-    return DictationItem.fromExpectedText('가나다');
+    return _worksheetKeys[index];
   }
 
-  Future<void> _scoreKeyboard() async {
-    final item = _itemFromPackage(ref.read(dictationPackageProvider));
-    final r = DictationCompare.score(
-      expected: item.expectedText,
-      actual: _keyboard.text.trim(),
-    );
-    setState(() => _keyboardScore = r);
-  }
-
-  Future<void> _scoreCanvasOcr() async {
-    setState(() {
-      _busy = true;
-      _ocrScore = null;
-      _ocrText = null;
-    });
-    try {
-      final item = _itemFromPackage(ref.read(dictationPackageProvider));
-      final size = const Size(800, 400);
-      final png = await strokesToPng(strokes: _strokes, size: size);
-      if (png == null || png.isEmpty) {
-        setState(() => _busy = false);
-        return;
-      }
-      final text = await OcrService.recognizePngBytes(
-        png,
-        width: size.width.ceil(),
-        height: size.height.ceil(),
-      );
-      final r = DictationCompare.score(
-        expected: item.expectedText,
-        actual: text.replaceAll(RegExp(r'\s+'), ''),
-      );
-      setState(() {
-        _ocrText = text;
-        _ocrScore = r;
-      });
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _scoreGalleryOcr() async {
-    setState(() => _busy = true);
-    try {
-      final item = _itemFromPackage(ref.read(dictationPackageProvider));
-      final text = await OcrService.pickAndRecognizeGallery();
-      if (text == null || !mounted) return;
-      final r = DictationCompare.score(
-        expected: item.expectedText,
-        actual: text.replaceAll(RegExp(r'\s+'), ''),
-      );
-      setState(() {
-        _ocrText = text;
-        _ocrScore = r;
-      });
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  void dispose() {
-    _keyboard.dispose();
-    super.dispose();
-  }
+  double get _guideOpacity => _dictationMode ? 0.0 : 0.45;
 
   @override
   Widget build(BuildContext context) {
-    final pkg = ref.watch(dictationPackageProvider);
-    final item = _itemFromPackage(pkg);
-    return Scaffold(
-      appBar: AppBar(title: const Text('받아쓰기')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Text('정답(출제)', style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: 4),
-          Text(item.expectedText, style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 8),
-          FutureBuilder(
-            future: DeviceBindingId.getOrCreate(),
-            builder: (context, snap) {
-              final id = snap.data;
-              if (id == null) return const SizedBox.shrink();
-              return Text('기기 바인딩 ID: $id', style: Theme.of(context).textTheme.bodySmall);
-            },
-          ),
-          const Divider(height: 32),
-          Text('키보드 입력', style: Theme.of(context).textTheme.titleMedium),
-          TextField(
-            controller: _keyboard,
-            decoration: const InputDecoration(labelText: '답안'),
-          ),
-          const SizedBox(height: 8),
-          FilledButton(onPressed: _scoreKeyboard, child: const Text('키보드 채점')),
-          if (_keyboardScore != null) _scoreCard('키보드', _keyboardScore!),
-          const Divider(height: 32),
-          Text('손글씨 (캔버스 → OCR)', style: Theme.of(context).textTheme.titleMedium),
-          SizedBox(
-            height: 200,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                border: Border.all(color: Theme.of(context).colorScheme.outline),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: StrokeCanvas(
-                key: ValueKey(_canvasKey),
-                onStrokesChanged: (s) => setState(() => _strokes = s),
-              ),
+    final packageAsync = ref.watch(practicePackageProvider);
+
+    return JamminScaffold(
+      titleWidget: const JamminBrandTitle(subtitle: '받아쓰기'),
+      denseTop: true,
+      actions: [
+        IconButton(
+          tooltip: _dictationMode ? '획순 가이드 보기' : '받아쓰기 모드 (빈칸)',
+          icon: Icon(_dictationMode ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+          onPressed: () => setState(() => _dictationMode = !_dictationMode),
+        ),
+        IconButton(
+          tooltip: '서버에서 다시 불러오기',
+          icon: const Icon(Icons.cloud_download_outlined),
+          onPressed: () => _refreshFromServer(),
+        ),
+      ],
+      body: packageAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator(color: JamminTokens.brand)),
+        error: (e, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: JamminTokens.danger),
+                const SizedBox(height: 16),
+                Text('문제를 불러오지 못했습니다', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Text('$e', textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => ref.invalidate(bundledDefaultPackageProvider),
+                  child: const Text('다시 시도'),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              FilledButton.tonal(
-                onPressed: _busy ? null : _scoreCanvasOcr,
-                child: const Text('캔버스 OCR 채점'),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton(
-                onPressed: () => setState(() {
-                  _strokes = [];
-                  _canvasKey++;
-                }),
-                child: const Text('지우기'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          FilledButton.tonal(
-            onPressed: _busy ? null : _scoreGalleryOcr,
-            child: const Text('갤러리 이미지 OCR 채점'),
-          ),
-          if (_ocrText != null) ...[
-            const SizedBox(height: 8),
-            Text('OCR 텍스트: $_ocrText'),
-          ],
-          if (_ocrScore != null) _scoreCard('OCR', _ocrScore!),
-          if (_busy) const Padding(
-            padding: EdgeInsets.all(16),
-            child: Center(child: CircularProgressIndicator()),
-          ),
-        ],
+        ),
+        data: (pkg) => _buildWorksheetBody(context, pkg),
+      ),
+      bottomNavigationBar: packageAsync.maybeWhen(
+        data: (_) => _buildToolbar(),
+        orElse: () => null,
       ),
     );
   }
 
-  Widget _scoreCard(String label, DictationScoreResult r) {
-    if (r.error != null) {
-      return Card(
-        child: ListTile(title: Text(label), subtitle: Text(r.error!)),
-      );
+  Future<void> _refreshFromServer() async {
+    try {
+      final pkg = await ref.read(jamminNetworkPackageProvider.future);
+      ref.read(dictationPackageProvider.notifier).state = pkg;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('jammin 서버에서 갱신했습니다.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('서버 갱신 실패: $e')),
+        );
+      }
     }
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('$label 점수: ${r.scorePercent}% (${r.correctCount}/${r.totalCount})'),
-            if (r.hasExtraInput) const Text('입력이 더 깁니다.', style: TextStyle(color: Colors.orange)),
-            const SizedBox(height: 8),
-            ...r.matches.take(12).map(
-                  (m) => Text(
-                    '#${m.index + 1} ${m.isCorrect ? "✓" : "✗"} ${m.mismatchReason ?? ""}',
-                    style: TextStyle(
-                      color: m.isCorrect
-                          ? Theme.of(context).colorScheme.secondary
-                          : Theme.of(context).colorScheme.tertiary,
+  }
+
+  Widget _buildWorksheetBody(BuildContext context, DictationPackage package) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const JamminPrintHeader(),
+        const SizedBox(height: 8),
+        Expanded(
+          child: JamminWorksheetBox(
+            child: SingleChildScrollView(
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var index = 0; index < package.items.length; index++) ...[
+                    if (index > 0) const SizedBox(height: 24),
+                    Builder(
+                      builder: (context) {
+                        final item = package.items[index];
+                        final glyphs = dictationItemGlyphs(item);
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(left: 4, bottom: 8),
+                              child: Text(
+                                '${index + 1}. ${item.expectedText} (${glyphs.length}칸)',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                            ),
+                            HangulWritingWorksheet(
+                              key: _keyForIndex(index),
+                              text: item.expectedText,
+                              glyphs: glyphs,
+                              showGlyphGuides: true,
+                              guideOpacity: _guideOpacity,
+                              tool: _tool,
+                              onInteraction: () => setState(() {}),
+                            ),
+                          ],
+                        );
+                      },
                     ),
-                  ),
-                ),
-          ],
+                  ],
+                ],
+              ),
+            ),
+          ),
         ),
-      ),
+      ],
+    );
+  }
+
+  Widget? _buildToolbar() {
+    HangulWritingWorksheetState? selectedSheet;
+    for (final key in _worksheetKeys) {
+      final state = key.currentState;
+      if (state?.selectedCell != null) {
+        selectedSheet = state;
+        break;
+      }
+    }
+
+    return HangulWritingToolbar(
+      tool: _tool,
+      onToolChanged: (t) => setState(() => _tool = t),
+      hasSelection: selectedSheet?.selectedCell != null,
+      onClearSelected: () {
+        final idx = selectedSheet?.selectedCell;
+        if (idx != null) selectedSheet?.clearCell(idx);
+      },
+      onClearAll: () {
+        for (final key in _worksheetKeys) {
+          key.currentState?.clearAll();
+        }
+      },
     );
   }
 }

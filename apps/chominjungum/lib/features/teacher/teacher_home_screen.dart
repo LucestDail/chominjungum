@@ -11,7 +11,13 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/dictation_models.dart';
 import '../../providers/dictation_providers.dart';
+import '../../services/jammin_add_word_service.dart';
 import '../../services/local_hub_service.dart';
+import '../../theme/jammin_tokens.dart';
+import '../../widgets/jammin/jammin_brand_title.dart';
+import '../../widgets/jammin/jammin_scaffold.dart';
+import '../../widgets/jammin/jammin_section.dart';
+import '../../widgets/jammin/jammin_status_banner.dart';
 
 /// 교사: 로컬 허브 시작·QR·문제 전송.
 class TeacherHomeScreen extends ConsumerStatefulWidget {
@@ -22,7 +28,7 @@ class TeacherHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
-  final _sentence = TextEditingController(text: '가나다');
+  final _sentence = TextEditingController(text: '안녕하세요');
   final _hostOverride = TextEditingController();
   LocalHubService? _hub;
   SessionPairingPayload? _pairing;
@@ -93,34 +99,40 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
     if (hub == null || key == null) return;
     final text = _sentence.text.trim();
     if (text.isEmpty) return;
-    final item = DictationItem.fromExpectedText(text);
-    final pkg = DictationPackage(version: DictationPackage.currentVersion, items: [item]);
-    ref.read(dictationPackageProvider.notifier).state = pkg;
-    await hub.broadcastEncrypted(
-      type: SyncMessageTypes.dictationPackage,
-      plainBytes: pkg.toUtf8Bytes(),
-    );
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('학생 기기로 암호화 전송했습니다.')),
+    try {
+      final glyphs = await JamminAddWordService().addWord(text);
+      final item = DictationItem.fromGlyphs(text, glyphs);
+      final pkg = DictationPackage(version: DictationPackage.currentVersion, items: [item]);
+      ref.read(dictationPackageProvider.notifier).state = pkg;
+      await hub.broadcastEncrypted(
+        type: SyncMessageTypes.dictationPackage,
+        plainBytes: pkg.toUtf8Bytes(),
       );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('학생 기기로 암호화 전송했습니다.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('jammin 분해 실패: $e')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('초민정음 · 교사')),
+    return JamminScaffold(
+      titleWidget: const JamminBrandTitle(subtitle: '교사'),
       body: ListView(
-        padding: const EdgeInsets.all(20),
         children: [
-          Text('LAN WebSocket 허브', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(
-            '학생과 같은 Wi-Fi에 두고, 아래 QR을 스캔하게 하세요. 세션 키는 QR로만 교환됩니다.',
-            style: Theme.of(context).textTheme.bodyMedium,
+          const JamminSectionHeader(
+            heading: '교실 허브',
+            subheading: '학생과 같은 Wi-Fi에서 QR로 연결합니다. 세션 키는 QR로만 교환됩니다.',
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           TextField(
             controller: _hostOverride,
             decoration: const InputDecoration(
@@ -128,7 +140,7 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
               hintText: '예: 192.168.0.12',
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Row(
             children: [
               FilledButton(
@@ -143,22 +155,46 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
             ],
           ),
           if (_error != null) ...[
-            const SizedBox(height: 8),
-            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            const SizedBox(height: 16),
+            JamminStatusBanner(message: _error!, tone: JamminStatusTone.error),
           ],
           if (_pairing != null && (_pairing!.hubHost ?? '').isNotEmpty) ...[
-            const SizedBox(height: 24),
-            Center(
-              child: QrImageView(
-                data: _pairing!.encode(),
-                version: QrVersions.auto,
-                size: 220,
+            const SizedBox(height: 28),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Text(
+                      '학생 스캔용 QR',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 16),
+                    QrImageView(
+                      data: _pairing!.encode(),
+                      version: QrVersions.auto,
+                      size: 220,
+                      backgroundColor: JamminTokens.surfaceElevated,
+                    ),
+                    const SizedBox(height: 12),
+                    SelectableText(
+                      _pairing!.encode(),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            SelectableText(_pairing!.encode(), style: const TextStyle(fontSize: 11)),
           ],
+          const SizedBox(height: 32),
+          const Divider(),
           const SizedBox(height: 24),
+          const JamminSectionHeader(
+            heading: '받아쓰기 출제',
+            subheading: '정답 문장을 입력하고 학생 기기로 전송합니다.',
+            center: false,
+          ),
+          const SizedBox(height: 16),
           TextField(
             controller: _sentence,
             decoration: const InputDecoration(
@@ -166,14 +202,14 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          FilledButton.tonal(
+          FilledButton(
             onPressed: _hub != null ? _broadcast : null,
             child: const Text('문제 전송 (암호화)'),
           ),
           const SizedBox(height: 24),
-          FilledButton(
+          OutlinedButton(
             onPressed: () => context.push('/practice'),
-            child: const Text('이 기기에서 미리보기 (학습 화면)'),
+            child: const Text('이 기기에서 미리보기'),
           ),
         ],
       ),

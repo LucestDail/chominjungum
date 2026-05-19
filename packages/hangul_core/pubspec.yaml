@@ -2,8 +2,6 @@ name: hangul_core
 description: jammin HangulUtil/Hangul JSON 호환 한글 분해·비교 (순수 Dart)
 version: 0.1.0
 publish_to: none
-resolution: workspace
-
 environment:
   sdk: ">=3.5.0 <5.0.0"
 

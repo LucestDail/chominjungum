@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'hangul_glyph.dart';
 
 /// jammin [HangulUtil] 포팅.
@@ -96,6 +98,17 @@ class HangulUtil {
       );
     }
     return list;
+  }
+
+  /// jammin `POST /addWord` 응답 JSON 배열 → [HangulGlyph] 목록.
+  static List<HangulGlyph> glyphsFromAddWordResponse(String responseBody) {
+    final trimmed = responseBody.trim();
+    if (trimmed.isEmpty || trimmed == '[]') return [];
+    final decoded = jsonDecode(trimmed);
+    if (decoded is! List) return [];
+    return decoded
+        .map((e) => HangulGlyph.fromJson(Map<String, Object?>.from(e as Map)))
+        .toList();
   }
 
   /// jammin `addWord` 응답과 동일한 JSON 배열 문자열.

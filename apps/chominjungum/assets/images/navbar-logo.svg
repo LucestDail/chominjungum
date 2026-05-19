@@ -1,0 +1,13 @@
+<svg width="180" height="32" xmlns="http://www.w3.org/2000/svg">
+ <title>navbar-logo</title>
+
+ <g>
+  <title>Layer 1</title>
+  <text style="cursor: move;" font-weight="normal" xml:space="preserve" text-anchor="start" font-family="Noto Sans JP" font-size="24" id="svg_1" y="23.72152" x="41.39241" stroke-width="0" stroke="#000" fill="#ffff00">초 민 정 음</text>
+  <line stroke="#ffff00" id="svg_2" y2="2.4557" x2="147.00593" y1="2.4557" x1="37.08861" fill="none"/>
+  <line stroke="#fcfc00" id="svg_3" y2="28.53165" x2="146.50532" y1="28.53165" x1="93.54431" fill="none"/>
+  <line id="svg_4" y2="28.82902" x2="147.21519" y1="2.70886" x1="147.21519" stroke="#ffff00" fill="none"/>
+  <line stroke="#ffff00" id="svg_5" y2="13.62564" x2="37.08861" y1="2.70886" x1="37.08861" fill="none"/>
+  <line id="svg_6" y2="50.3038" x2="51.01266" y1="50.05063" x1="51.01266" stroke="#000" fill="none"/>
+ </g>
+</svg>
