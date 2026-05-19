@@ -1,0 +1,43 @@
+name: chominjungum
+description: 초민정음 MK2 — jammin 연계 모바일 (교사 허브·로컬 동기화)
+publish_to: 'none'
+version: 1.0.0+1
+
+resolution: workspace
+
+environment:
+  sdk: ">=3.5.0 <5.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  hangul_core:
+    path: ../../packages/hangul_core
+  sync_protocol:
+    path: ../../packages/sync_protocol
+  flutter_riverpod: ^2.6.1
+  go_router: ^14.6.2
+  hive_flutter: ^1.1.0
+  flutter_secure_storage: ^9.2.2
+  google_mlkit_text_recognition: ^0.15.0
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^7.2.0
+  shelf: ^1.4.2
+  shelf_web_socket: ^2.0.1
+  web_socket_channel: ^3.0.1
+  cryptography: ^2.7.0
+  uuid: ^4.5.1
+  image: ^4.5.3
+  path_provider: ^2.1.5
+  network_info_plus: ^6.1.4
+  image_picker: ^1.1.2
+  crypto: ^3.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

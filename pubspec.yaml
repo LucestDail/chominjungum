@@ -1,0 +1,11 @@
+name: chominjungum_workspace
+publish_to: none
+description: 초민정음 MK2 — Flutter 모노레포 (hangul_core, sync_protocol, 앱)
+
+environment:
+  sdk: ">=3.5.0 <5.0.0"
+
+workspace:
+  - packages/hangul_core
+  - packages/sync_protocol
+  - apps/chominjungum

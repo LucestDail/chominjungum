@@ -2,14 +2,16 @@
 
 ## 1. 프로젝트 비전
 
-jammin 웹 프로젝트의 개선된 모바일 특화 애플리케이션. jammin의 서버 기능을 활용하여 받아쓰기 만들기를 포함한 초등 국어교육 전반에 필요한 교육 자료, 기능 제공 및 실시간 학생/부모/교사를 통한 시험, 관리, 글씨체 교정 등 AI 접목된 사이버 교육 지원 플랫폼.
+jammin 웹 프로젝트의 개선된 모바일 특화 애플리케이션. **중앙 서버 없이** 교사 기기와 근거리 연동하여 받아쓰기·국어 학습을 지원하고, jammin과 호환되는 한글 분해 스키마로 출제·채점한다. (선택적으로 jammin 웹·API를 콘텐츠 제작용으로 활용)
 
 ## 2. 현재 상태
 
-- README만 존재 ("초민정음MK2")
-- 코드, 설정, 빌드 파일 없음
-- jammin 프로젝트의 한글 유틸, SVG 자산을 공유 자산으로 활용 예정
-- 설계부터 시작 필요
+- **Dart/Flutter 모노레포** ([`pubspec.yaml`](pubspec.yaml) 워크스페이스): `packages/hangul_core`, `packages/sync_protocol`, `apps/chominjungum`
+- **jammin 호환 한글 분해**: `hangul_core`에 `HangulUtil` / `HangulGlyph` 포팅 및 `DictationCompare` 채점
+- **로컬 동기화 프로토콜**: `sync_protocol` — `SessionPairingPayload`(QR), `SyncEnvelope` + AES-GCM(`SyncCrypto`)
+- **앱 MVP**: Material 3 테마, Riverpod, go_router, Hive 초기화, 교사 LAN WebSocket 허브 + 학생 QR 연결, 받아쓰기 화면(키보드 + ML Kit OCR), Android `student`/`teacher` productFlavors
+- **기기 바인딩**: `flutter_secure_storage`에 UUID 기반 ID 저장 (`DeviceBindingId`)
+- jammin **SVG·폰트** 자산은 아직 미연동 (경로만 계획에 유지)
 
 ## 3. 디자인 시스템
 
@@ -67,59 +69,63 @@ M3 토큰으로 확장:
 
 ## 4. 아키텍처
 
+**원칙**: 인터넷 상 **중앙 백엔드 없음**. 교실 단위 데이터는 각 기기에 저장하고, 동기화는 **교사 기기의 로컬 WebSocket 허브**(짧은 수명) 또는 **QR/파일**로만 수행한다.
+
 ```
-┌─────────────────────────────────────────────┐
-│            chominjungum (Mobile)              │
-│                                               │
-│  ┌─────────────────────────────────────────┐ │
-│  │          Flutter App                     │ │
-│  │                                          │ │
-│  │  학생 모드    교사 모드    부모 모드       │ │
-│  │  ┌────────┐ ┌────────┐ ┌────────┐       │ │
-│  │  │학습    │ │출제    │ │리포트  │       │ │
-│  │  │받아쓰기│ │채점    │ │알림    │       │ │
-│  │  │획순    │ │학급관리│ │메시지  │       │ │
-│  │  │자료실  │ │통계    │ │과제확인│       │ │
-│  │  └────────┘ └────────┘ └────────┘       │ │
-│  │                    │                      │ │
-│  │           REST / WebSocket                │ │
-│  │                    │                      │ │
-│  └────────────────────┼──────────────────────┘ │
-│                       │                        │
-│              jammin Server (백엔드)              │
-│   (한글 분해 API + 인증 + DB + AI + WebSocket)  │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                    chominjungum 모노레포                       │
+│  packages/hangul_core   — jammin JSON 호환 분해·채점 (순수 Dart) │
+│  packages/sync_protocol — 페어링·SyncEnvelope·AES-GCM          │
+│  apps/chominjungum      — Flutter (교사/학생 엔트리 분리)        │
+└──────────────────────────────────────────────────────────────┘
+         │ QR(SessionPairingPayload)              │ 암호화 WS
+         ▼                                        ▼
+   ┌─────────────┐   LAN (동일 Wi-Fi)    ┌──────────────┐
+   │ 교사 태블릿   │ ◄──── WebSocket ───► │ 학생 태블릿들  │
+   │ LocalHub    │    (SyncEnvelope)     │ StudentHub   │
+   └─────────────┘                       └──────────────┘
 ```
+
+- **운영 동기화**: `LocalHubService` + `StudentHubClient` (`shelf` + `web_socket_channel`). 페이로드는 `SyncCrypto.seal` / `open`.
+- **jammin 서버**(`POST /addWord` 등): 개발·콘텐츠 제작 시 **선택적** 호출만 고려. 앱 런타임 채점은 **`hangul_core` 온디바이스**로 수행.
+- **멀티모달 AI / 외부 OCR**: 기본 off. 필요 시 **교사 기기**에서만 API 키를 두는 방식으로 확장 (학생 단말 외부 전송 최소화).
 
 ---
 
 ## 5. 단계별 구현 계획
 
-### Phase 1 — Flutter 앱 기초 + jammin 서버 연동 (4주)
+### Phase 1 — Flutter 앱 기초 + 로컬 동기화 (진행 중)
 
-**1.1 Flutter 프로젝트 초기화**
-- [ ] Flutter 프로젝트 생성
-- [ ] M3 테마 구성 (위 컬러 시스템 적용)
-- [ ] KCC-DodamdodamR 폰트 번들 포함
-- [ ] Riverpod 상태 관리 설정
-- [ ] go_router 라우팅 (역할별 분기)
-- [ ] 로컬 저장소: Hive
+**1.1 Flutter 프로젝트 초기화** (일부 완료)
+- [x] Flutter 모노레포 워크스페이스 (`hangul_core`, `sync_protocol`, 앱)
+- [x] M3 테마 (`lib/theme/app_theme.dart`)
+- [ ] KCC-DodamdodamR 폰트 번들
+- [x] Riverpod + `ProviderScope`
+- [x] go_router
+- [x] Hive 초기화 (`bootstrap.dart`)
+- [x] Android productFlavors `student` / `teacher` (역할별 앱 ID)
+- [x] 교사 엔트리: `lib/main_teacher.dart`, 학생: `lib/main.dart`
+
+**실행 예** (역할은 엔트리 포인트로 구분, 빌드 변형은 flavor):
+```bash
+cd apps/chominjungum
+flutter run --flavor student
+flutter run --flavor teacher -t lib/main_teacher.dart
+```
 
 **1.2 인증 및 역할**
-- [ ] 로그인/회원가입 화면 (M3 Text Field + 버튼)
-- [ ] 역할 선택: 학생 / 교사 / 부모
-- [ ] jammin 서버 JWT API 연동
-- [ ] 토큰 로컬 저장 + 자동 로그인
+- [ ] 로그인/회원가입 (중앙 서버 없을 때는 **기기 바인딩 + 교실 페어링**만으로 충분한지 정책 확정)
+- [x] 역할 분기: 교사(`AppRole.teacher`) / 학생(`AppRole.student`)
+- [ ] (선택) jammin JWT — **로컬 우선 정책과 충돌 시 비활성 또는 개발 전용**
 
-**1.3 jammin 서버 API 클라이언트**
-- [ ] REST 클라이언트 (dio)
-- [ ] 한글 분해 API (`POST /addWord`) 연동
-- [ ] 에러 핸들링 + 오프라인 감지
-- [ ] API 응답 캐싱 (로컬)
+**1.3 한글·동기화 패키지**
+- [x] `hangul_core` — jammin `addWord` JSON 호환 `HangulUtil.addWordJson`, `DictationCompare`
+- [x] `sync_protocol` — `SessionPairingPayload`, `SyncEnvelope`, `SyncCrypto`
+- [x] 교사 허브 MVP + 학생 WebSocket 클라이언트 (`LocalHubService`, `StudentHubClient`)
 
 **1.4 기본 학습 화면 (학생 모드)**
-- [ ] 홈 화면 — 오늘의 학습, 최근 성적, 배지
-- [ ] 하단 내비바 (M3 Navigation Bar): 학습 / 시험 / 자료 / 마이페이지
+- [x] 받아쓰기 연습 화면 — 키보드 채점 + 캔버스/갤러리 → ML Kit OCR → `hangul_core` 채점
+- [ ] 하단 내비바 전체 탭 (학습 / 시험 / 자료 / 마이페이지)
 
 ### Phase 2 — 핵심 학습 기능 (5주)
 
@@ -129,7 +135,7 @@ M3 토큰으로 확장:
 - [ ] 음성 기반 받아쓰기:
   - TTS (`flutter_tts`) — 문제 읽어주기 (속도 조절 가능)
   - 학생 타이핑 입력
-  - 자동 채점 (한글 분해 API 기반 음절 비교)
+  - 자동 채점 (`hangul_core` 음절·자모 비교, OCR 후처리)
 - [ ] 결과 화면: 정답(Secondary)/오답(Tertiary) 색상 구분
 - [ ] 오답 노트 자동 생성
 
@@ -168,7 +174,7 @@ M3 토큰으로 확장:
 - [ ] 학급 통계 대시보드: 평균 정답률, 취약 자모 분석
 
 **3.2 실시간 시험**
-- [ ] WebSocket 기반 실시간 통신
+- [ ] WebSocket 기반 실시간 통신 (**교사 로컬 허브** 또는 동일 프로토콜의 향상된 전송 계층)
 - [ ] 교사 출제 → 학생 기기에 즉시 표시
 - [ ] 실시간 타이머 동기화
 - [ ] 응시 완료 → 즉시 채점 → 결과 전송
@@ -193,7 +199,7 @@ M3 토큰으로 확장:
 - [ ] 핵심 학습 데이터 로컬 캐시 (SVG, 단어 목록, 학습 자료)
 - [ ] 오프라인 받아쓰기 (로컬 단어장 기반)
 - [ ] 오프라인 획순 연습
-- [ ] 재연결 시 학습 기록 서버 동기화
+- [ ] 재연결 시 **교사 기기와의 페어링**으로 이력 전달 (또는 로컬 백업 파일)
 
 **4.2 카메라 OCR**
 - [ ] 종이 학습지 촬영 → OCR 텍스트 추출
@@ -212,15 +218,13 @@ M3 토큰으로 확장:
 
 ---
 
-## 6. jammin 서버 필요 확장 사항
+## 6. jammin 연동 (선택)
 
-chominjungum 앱이 요구하는 jammin 서버 기능 (jammin PLAN.md의 Phase 1~2에 해당):
-- [ ] DB 연동 (사용자, 학급, 시험, 학습이력)
-- [ ] 인증/권한 시스템 (학생/교사/부모)
-- [ ] Gemini AI 연동 (출제, 교정)
-- [ ] WebSocket (실시간 시험)
-- [ ] 학습이력 API
-- [ ] 학급 관리 API
+중앙 서버 없이 운영할 때 jammin은 **콘텐츠 제작 파이프라인**(웹에서 학습지 생성) 등 **오프라인·옵션**으로 둔다.
+
+선택적으로 활용 가능한 jammin 측 기능:
+- [ ] 웹 `POST /addWord`와 동일 스키마 검증용 통합 테스트
+- [ ] DB·인증·WebSocket — **학교 단위 클라우드 배포를 도입할 때만** 검토
 
 ---
 
@@ -232,12 +236,10 @@ chominjungum 앱이 요구하는 jammin 서버 기능 (jammin PLAN.md의 Phase 1
 | 언어 | Dart |
 | 상태 관리 | Riverpod |
 | 라우팅 | go_router |
-| HTTP | dio |
-| 실시간 | web_socket_channel |
-| 로컬 저장소 | Hive |
-| TTS | flutter_tts |
-| 카메라/OCR | camera + google_mlkit_text_recognition |
-| 드로잉 | CustomPaint (획순 연습) |
-| 디자인 | M3 + jammin 골든 옐로우 컬러 |
-| 폰트 | KCC-DodamdodamR (도담도담체) |
-| 백엔드 | jammin 서버 (Spring Boot) |
+| HTTP (선택) | dio — jammin 등 외부 호출이 필요해질 때 |
+| 실시간 | `web_socket_channel` + `shelf` — 교사 **로컬** 허브 |
+| 로컬 저장소 | Hive + `flutter_secure_storage` (기기 바인딩 ID) |
+| TTS | flutter_tts (예정) |
+| 카메라/OCR | `google_mlkit_text_recognition`, `image_picker`, `mobile_scanner` |
+| 동기화·암호화 | `sync_protocol`, `cryptography` — QR 페어링 + AES-GCM |
+| 백엔드 | **없음** (기본). jammin 서버는 선택·개발용 |
