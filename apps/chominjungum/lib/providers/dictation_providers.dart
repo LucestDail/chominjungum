@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/dictation_models.dart';
 import '../services/bundled_dictation_loader.dart';
+import '../services/device_binding_id.dart';
 import '../services/jammin_add_word_service.dart';
+import '../services/local_hub_service.dart';
 import 'package:hangul_core/hangul_core.dart';
 
 export '../services/bundled_dictation_loader.dart' show BundledDictationLoader;
@@ -12,6 +14,14 @@ const kDefaultPracticeWords = ['안녕하세요', '강아지와고양이'];
 
 /// 교사 허브 수신 또는 앱 시작 시 로드한 받아쓰기 묶음.
 final dictationPackageProvider = StateProvider<DictationPackage?>((ref) => null);
+
+/// 학생 기기가 연결 중인 교사 허브 클라이언트 (미연결이면 null).
+final studentHubClientProvider = StateProvider<StudentHubClient?>((ref) => null);
+
+/// 기기 단위 안정 ID (제출 시 학생 식별자).
+final deviceBindingIdProvider = FutureProvider<String>((ref) {
+  return DeviceBindingId.getOrCreate();
+});
 
 /// 앱에 번들된 기본 묶음 (서버 응답 스냅샷).
 final bundledDefaultPackageProvider = FutureProvider<DictationPackage>((ref) {

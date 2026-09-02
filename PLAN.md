@@ -34,7 +34,7 @@
 
 - **페어링**: `SessionPairingPayload` (QR/JSON) — `sessionId`, `hubHost`, `hubPort`, `publicKeyB64`(실제로는 **대칭 세션 키**)
 - **전송**: `SyncEnvelope` + `SyncCrypto` (AES-GCM)
-- **메시지 타입 정의만 존재**: `dictation.package`, `attempt.submit`, `ack` — **`attempt.submit` 앱 연동 없음**
+- **메시지**: `dictation.package`(교사→학생 브로드캐스트), `attempt.submit`(학생→교사, `AttemptSubmitPayload`) 앱 연동 완료. `ack`는 타입만 정의
 
 ### 2.4 Flutter 앱 — 공통
 
@@ -54,6 +54,7 @@
 - QR + 페이로드 JSON 화면 표시
 - 받아쓰기 문장 입력 → `DictationPackage` 암호화 브로드캐스트
 - 학습 화면 미리보기 (`/practice`)
+- **제출 현황판**: 접속 학생 수·제출 건수·평균 점수 + 제출 목록(기기ID 축약·답안·정답·점수·시각). 같은 기기+같은 문항 재제출은 최신 것으로 대체
 
 ### 2.6 학생 앱 (`StudentHomeScreen`)
 
@@ -64,9 +65,9 @@
 ### 2.7 받아쓰기 (`DictationPracticeScreen`)
 
 - jammin `static/hangul/*.svg` → `assets/hangul/` + `HangulWorksheet` / `HangulGlyphCell` (editor 프로필)
-- **학생**: 지험지(받아쓰기 모드·획순 가이드 토글), 키보드 채점, 손글씨 연습 캔버스 — **OCR UI 없음**, 정답 문장 미표시
-- **교사**: 정답·지험지 미리보기, 키보드 + 캔버스/갤러리 OCR 채점, 기기 바인딩 ID 표시
-- 채점 결과 카드 (점수%, 글자별 피드백, 상위 12글자)
+- 지험지 위 손글씨 워크시트 (받아쓰기 모드·획순 가이드 토글, 펜/지우개) — 학생·교사 공용 화면
+- **채점·제출 시트** (`AttemptSubmitSheet`, 앱바 ✅ 버튼): 문항별 답안 입력 → `DictationCompare` 온디바이스 채점 → 점수%·글자별 ✓/✗·정답 표시 → 허브 연결 시 `attempt.submit` 암호화 제출
+- ⚠️ **OCR UI 없음** (`OcrService`는 존재하나 화면 미연결), 손글씨 자동 채점 없음 (키보드 입력만 채점)
 
 ### 2.8 플랫폼
 
@@ -78,8 +79,8 @@
 
 ### 2.9 미구현 (코드 없음)
 
-- 학생 **답안·채점 결과** 교사 기기로 전송 (`attempt.submit`)
-- 학습 이력 **Hive/DB 저장**
+- 학습 이력 **Hive/DB 저장** (제출 목록은 교사 앱 메모리에만 — 앱 종료 시 소멸)
+- 손글씨 → OCR 자동 채점 (`OcrService` 화면 미연결)
 - 하단 내비·홈·시험·자료·마이페이지
 - TTS, 획순, AI 출제/교정, 부모 모드, 학급 관리
 - jammin SVG·도담도담체 폰트 번들
@@ -98,8 +99,7 @@
 | `ws://` 평문 | Android cleartext, LAN 스니핑 가능 | 교실망 한정 문서화 또는 `wss` 검토 |
 | 페이로드 화면 노출 | 교사 화면 `SelectableText`에 전체 JSON | QR만 표시, JSON은 개발자 메뉴로 |
 | 기기 ID UI 노출 | 받아쓰기 화면에 UUID 표시 | 설정/디버그로 이동 또는 제거 |
-| `attempt.submit` 미연동 | 프로토콜만 정의 | 학생 채점 후 교사로 전송 구현 |
-| Hive 미사용 | init만 됨 | Box 설계 후 시도·이력 저장 |
+| Hive 미사용 | init만 됨 (제출 목록도 메모리 휘발) | Box 설계 후 시도·이력 저장 |
 
 기타:
 
@@ -146,8 +146,8 @@ M3 + jammin 톤. 상세 토큰은 기존 설계 유지.
 
 **1.1 동기화·보안**
 
-- [ ] 학생 채점 완료 → `SyncMessageTypes.attemptSubmit`으로 교사 허브 전송
-- [ ] 교사 화면: 접속 학생 수·최근 제출·점수 요약 (최소 리스트)
+- [x] 학생 채점 완료 → `SyncMessageTypes.attemptSubmit`으로 교사 허브 전송 (2026-09-02)
+- [x] 교사 화면: 접속 학생 수·최근 제출·점수 요약 (최소 리스트) (2026-09-02)
 - [ ] QR 페이로드에서 세션 키 노출 방식 개선 (일회용 페어링 코드 + 키는 WS 핸드셰이크)
 - [ ] 교사 화면 JSON 전체 노출 제거 또는 개발 모드로 분리
 - [ ] (선택) 허브 바인딩 IP·포트 설정 UI
@@ -169,11 +169,13 @@ M3 + jammin 톤. 상세 토큰은 기존 설계 유지.
 **1.4 품질·배포 준비**
 
 - [ ] `hangul_core` ↔ jammin `addWord` 골든 테스트 (동일 입력 JSON diff)
-- [ ] 통합 테스트: 허브 → 수신 → 채점 → 제출 E2E (가능 시)
+- [x] 통합 테스트: 허브 → 수신 → 채점 → 제출 E2E (2026-09-02, `test/hub_attempt_flow_test.dart`·`test/attempt_submit_e2e_test.dart`. ⚠️실제 소켓 I/O는 `tester.runAsync` 안에서만 진행됨)
 - [ ] Android release keystore·서명 분리
 - [ ] README/PLAN과 실제 동작 정기 동기화
 
 **Phase 1 완료 기준:** 교사 1대 + 학생 N대, 같은 Wi‑Fi에서 출제 → 응시 → 채점 → **교사가 제출·점수 확인**까지 한 사이클.
+
+> **2026-09-02 진행**: 출제 → 수신 → 채점 → 제출 → 교사 수신 경로를 구현하고 자동 테스트로 증명(앱 9 + 패키지 11 GREEN). **남은 확인 = 실기기 2대 교실 리허설** — 교사 현황판 렌더는 위젯 테스트가 아니라 실기기로 봐야 한다(`NetworkInfo`·실허브 의존).
 
 ---
 

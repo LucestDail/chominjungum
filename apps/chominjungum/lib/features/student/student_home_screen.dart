@@ -62,6 +62,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
       final keyBytes = Uint8List.fromList(base64Decode(payload.publicKeyB64));
       final key = await SyncCrypto.sessionKeyFromBytes(keyBytes);
       await _client?.close();
+      ref.read(studentHubClientProvider.notifier).state = null;
       _client = await StudentHubClient.connect(
         wsUrl: 'ws://$host:${payload.hubPort}/',
         sessionKey: key,
@@ -75,6 +76,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
           }
         },
       );
+      ref.read(studentHubClientProvider.notifier).state = _client;
       if (mounted) {
         _setStatus('허브에 연결됨. 교사가 문제를 내면 자동으로 열립니다.', tone: JamminStatusTone.success);
       }

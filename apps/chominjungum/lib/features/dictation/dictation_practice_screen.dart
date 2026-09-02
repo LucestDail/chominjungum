@@ -9,6 +9,7 @@ import '../../widgets/jammin/jammin_brand_title.dart';
 import '../../widgets/jammin/jammin_print_header.dart';
 import '../../widgets/jammin/jammin_scaffold.dart';
 import '../../widgets/jammin/jammin_worksheet_box.dart';
+import 'attempt_submit_sheet.dart';
 
 /// jammin 받아쓰기: 번들/허브 자모 + 지험지 위 손글씨.
 class DictationPracticeScreen extends ConsumerStatefulWidget {
@@ -40,6 +41,15 @@ class _DictationPracticeScreenState extends ConsumerState<DictationPracticeScree
       titleWidget: const JamminBrandTitle(subtitle: '받아쓰기'),
       denseTop: true,
       actions: [
+        IconButton(
+          tooltip: '답안 채점·제출',
+          icon: const Icon(Icons.fact_check_outlined),
+          onPressed: () {
+            final pkg = ref.read(practicePackageProvider).valueOrNull;
+            if (pkg == null || pkg.items.isEmpty) return;
+            AttemptSubmitSheet.show(context, pkg);
+          },
+        ),
         IconButton(
           tooltip: _dictationMode ? '획순 가이드 보기' : '받아쓰기 모드 (빈칸)',
           icon: Icon(_dictationMode ? Icons.visibility_outlined : Icons.visibility_off_outlined),

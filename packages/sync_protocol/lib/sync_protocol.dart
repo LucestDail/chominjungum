@@ -160,3 +160,117 @@ abstract class SyncMessageTypes {
   static const attemptSubmit = 'attempt.submit';
   static const ack = 'ack';
 }
+
+/// 글자별 정오 요약 — 서버의 취약 자모 분석 원천 (프로토콜 v2).
+@immutable
+class GlyphMatchSummary {
+  const GlyphMatchSummary({required this.index, required this.ok, this.why});
+
+  final int index;
+  final bool ok;
+  final String? why;
+
+  Map<String, Object?> toJson() => {
+        'i': index,
+        'ok': ok,
+        if (why != null) 'why': why,
+      };
+
+  factory GlyphMatchSummary.fromJson(Map<String, Object?> json) {
+    return GlyphMatchSummary(
+      index: json['i'] as int? ?? 0,
+      ok: json['ok'] == true,
+      why: json['why'] as String?,
+    );
+  }
+}
+
+/// 학생 → 교사 허브로 보내는 답안·채점 결과 (`attempt.submit` body).
+///
+/// v2 에서 [matches]·[sessionId] 가 추가됐다. **둘 다 선택 항목**이라 v1 페이로드를
+/// 보내는 구버전 앱과도 그대로 호환된다.
+@immutable
+class AttemptSubmitPayload {
+  const AttemptSubmitPayload({
+    required this.attemptId,
+    required this.itemId,
+    required this.expectedText,
+    required this.rawAnswer,
+    required this.deviceBindingId,
+    required this.correctCount,
+    required this.totalCount,
+    required this.submittedAtMs,
+    this.inputKind = 'keyboard',
+    this.studentName,
+    this.matches,
+    this.sessionId,
+  });
+
+  final String attemptId;
+  final String itemId;
+  final String expectedText;
+  final String rawAnswer;
+
+  /// 학생 기기 식별자 (교사 화면 표시는 축약본 사용).
+  final String deviceBindingId;
+  final int correctCount;
+  final int totalCount;
+  final int submittedAtMs;
+
+  /// `keyboard` / `ocrCanvas` / `ocrImage`.
+  final String inputKind;
+  final String? studentName;
+
+  /// v2: 글자별 정오. 구버전 앱은 보내지 않는다.
+  final List<GlyphMatchSummary>? matches;
+
+  /// v2: 서버 업싱크 시 이 제출이 속한 허브 세션.
+  final String? sessionId;
+
+  double get ratio => totalCount == 0 ? 0 : correctCount / totalCount;
+
+  int get scorePercent => (ratio * 100).round();
+
+  Map<String, Object?> toJson() => {
+        'v': 1,
+        'attemptId': attemptId,
+        'itemId': itemId,
+        'expectedText': expectedText,
+        'rawAnswer': rawAnswer,
+        'deviceBindingId': deviceBindingId,
+        'correctCount': correctCount,
+        'totalCount': totalCount,
+        'submittedAtMs': submittedAtMs,
+        'inputKind': inputKind,
+        if (studentName != null) 'studentName': studentName,
+        if (matches != null) 'matches': matches!.map((m) => m.toJson()).toList(),
+        if (sessionId != null) 'sessionId': sessionId,
+      };
+
+  factory AttemptSubmitPayload.fromJson(Map<String, Object?> json) {
+    return AttemptSubmitPayload(
+      attemptId: json['attemptId']! as String,
+      itemId: json['itemId']! as String,
+      expectedText: json['expectedText'] as String? ?? '',
+      rawAnswer: json['rawAnswer'] as String? ?? '',
+      deviceBindingId: json['deviceBindingId'] as String? ?? '',
+      correctCount: json['correctCount'] as int? ?? 0,
+      totalCount: json['totalCount'] as int? ?? 0,
+      submittedAtMs: json['submittedAtMs'] as int? ?? 0,
+      inputKind: json['inputKind'] as String? ?? 'keyboard',
+      studentName: json['studentName'] as String?,
+      matches: (json['matches'] as List<dynamic>?)
+          ?.map((e) => GlyphMatchSummary.fromJson(Map<String, Object?>.from(e as Map)))
+          .toList(),
+      sessionId: json['sessionId'] as String?,
+    );
+  }
+
+  String encode() => jsonEncode(toJson());
+
+  static AttemptSubmitPayload decode(String raw) {
+    return AttemptSubmitPayload.fromJson(jsonDecode(raw) as Map<String, Object?>);
+  }
+
+  Uint8List toUtf8Bytes() => Uint8List.fromList(utf8.encode(encode()));
+}
