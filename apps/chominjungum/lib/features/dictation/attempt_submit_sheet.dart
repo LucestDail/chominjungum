@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/dictation_models.dart';
 import '../../providers/dictation_providers.dart';
+import 'glyph_result_chip.dart';
 import '../../theme/jammin_tokens.dart';
 import '../../widgets/jammin/jammin_status_banner.dart';
 
@@ -299,9 +300,10 @@ class _AttemptSubmitSheetState extends ConsumerState<AttemptSubmitSheet> {
           runSpacing: 6,
           children: [
             for (final m in result.matches)
-              _GlyphChip(
-                label: m.expected?.word ?? m.actual?.word ?? '?',
+              GlyphResultChip(
                 isCorrect: m.isCorrect,
+                expected: m.expected?.word,
+                actual: m.actual?.word,
               ),
           ],
         ),
@@ -311,34 +313,6 @@ class _AttemptSubmitSheetState extends ConsumerState<AttemptSubmitSheet> {
           style: Theme.of(context).textTheme.bodyMedium,
         ),
       ],
-    );
-  }
-}
-
-class _GlyphChip extends StatelessWidget {
-  const _GlyphChip({required this.label, required this.isCorrect});
-
-  final String label;
-  final bool isCorrect;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isCorrect ? JamminTokens.success : JamminTokens.danger;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(JamminTokens.radiusSm),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(label, style: TextStyle(color: color, fontSize: 16)),
-          const SizedBox(width: 4),
-          Icon(isCorrect ? Icons.check : Icons.close, size: 14, color: color),
-        ],
-      ),
     );
   }
 }
