@@ -74,6 +74,71 @@ class DictationRepository {
     return list.reversed.toList(growable: false);
   }
 
+  // ── 교사 수업 기록 ──────────────────────────────────────
+
+  Future<void> saveSession(TeacherSession session) {
+    return LocalStore.put(LocalStore.sessionsBox, session.sessionId, session.toJson());
+  }
+
+  TeacherSession? session(String sessionId) {
+    final raw = LocalStore.get(LocalStore.sessionsBox, sessionId);
+    return raw == null ? null : _trySession(raw);
+  }
+
+  /// 최근 수업부터.
+  List<TeacherSession> sessions() {
+    final list = LocalStore.values(LocalStore.sessionsBox)
+        .map(_trySession)
+        .whereType<TeacherSession>()
+        .toList();
+    list.sort((a, b) => b.startedAtMs.compareTo(a.startedAtMs));
+    return list;
+  }
+
+  /// 세션 하나를 읽어 바꿔 쓴다. 없는 세션이면 아무 일도 하지 않는다.
+  Future<void> updateSession(
+    String sessionId,
+    TeacherSession Function(TeacherSession) change,
+  ) async {
+    final current = session(sessionId);
+    if (current == null) return;
+    await saveSession(change(current));
+  }
+
+  /// 교사가 받은 학생 제출을 이력으로 남긴다.
+  ///
+  /// 교사 기기에서는 **수신했다는 것 자체가 제출 완료**이므로 학생이 보낸 시각을
+  /// 그대로 `submittedAtMs` 로 쓴다(학생 기기의 "아직 못 보낸 답안"과 구분된다).
+  Future<DictationAttempt> saveReceivedAttempt({
+    required String attemptId,
+    required String itemId,
+    required String deviceBindingId,
+    required String rawAnswer,
+    required int correctCount,
+    required int totalCount,
+    required int submittedAtMs,
+    String? inputKind,
+    String? matchesJson,
+  }) async {
+    final attempt = DictationAttempt(
+      id: attemptId,
+      itemId: itemId,
+      deviceBindingId: deviceBindingId,
+      rawAnswer: rawAnswer,
+      inputKind: AttemptInputKind.values.firstWhere(
+        (e) => e.name == inputKind,
+        orElse: () => AttemptInputKind.keyboard,
+      ),
+      createdAtMs: submittedAtMs,
+      correctCount: correctCount,
+      totalCount: totalCount,
+      matchesJson: matchesJson,
+      submittedAtMs: submittedAtMs,
+    );
+    await saveAttempt(attempt);
+    return attempt;
+  }
+
   // 깨진 기록 하나가 목록 전체를 못 읽게 만들지 않는다.
   static DictationItem? _tryItem(Map<String, Object?> json) {
     try {
@@ -86,6 +151,14 @@ class DictationRepository {
   static DictationAttempt? _tryAttempt(Map<String, Object?> json) {
     try {
       return DictationAttempt.fromJson(json);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static TeacherSession? _trySession(Map<String, Object?> json) {
+    try {
+      return TeacherSession.fromJson(json);
     } catch (_) {
       return null;
     }

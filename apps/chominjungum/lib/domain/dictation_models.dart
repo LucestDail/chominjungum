@@ -192,6 +192,91 @@ class DictationAttempt {
   }
 }
 
+/// 교사 기기에 남는 한 번의 수업(허브 세션) 기록.
+///
+/// 업싱크 큐와는 **목적이 다르다**. 큐는 "아직 서버에 못 올린 것"이라 업로드가
+/// 성공하면 비워진다(`upsync_service`). 그러면 지난 수업이 기기에 남지 않는다.
+/// 이 스냅샷은 업로드 여부와 무관하게 남는 **이력**이다.
+///
+/// 문제·답안 본문은 각자 Box 에 있고 여기서는 id 만 참조한다(같은 내용을 두 번 저장하지 않는다).
+class TeacherSession {
+  const TeacherSession({
+    required this.sessionId,
+    required this.startedAtMs,
+    this.endedAtMs,
+    this.itemIds = const [],
+    this.attemptIds = const [],
+    this.uploadedAtMs,
+  });
+
+  final String sessionId;
+  final int startedAtMs;
+  final int? endedAtMs;
+
+  /// 이 수업에서 낸 문제 (출제 순서).
+  final List<String> itemIds;
+
+  /// 이 수업에서 받은 답안.
+  final List<String> attemptIds;
+
+  /// 서버 업로드가 성공한 시각. 안 올렸으면 null.
+  final int? uploadedAtMs;
+
+  bool get isUploaded => uploadedAtMs != null;
+
+  TeacherSession copyWith({
+    int? endedAtMs,
+    List<String>? itemIds,
+    List<String>? attemptIds,
+    int? uploadedAtMs,
+  }) {
+    return TeacherSession(
+      sessionId: sessionId,
+      startedAtMs: startedAtMs,
+      endedAtMs: endedAtMs ?? this.endedAtMs,
+      itemIds: itemIds ?? this.itemIds,
+      attemptIds: attemptIds ?? this.attemptIds,
+      uploadedAtMs: uploadedAtMs ?? this.uploadedAtMs,
+    );
+  }
+
+  /// 같은 id 는 다시 넣지 않는다 (재전송·재제출이 있어도 목록이 부풀지 않게).
+  TeacherSession withItem(String itemId) {
+    if (itemIds.contains(itemId)) return this;
+    return copyWith(itemIds: [...itemIds, itemId]);
+  }
+
+  TeacherSession withAttempt(String attemptId) {
+    if (attemptIds.contains(attemptId)) return this;
+    return copyWith(attemptIds: [...attemptIds, attemptId]);
+  }
+
+  Map<String, Object?> toJson() => {
+        'sessionId': sessionId,
+        'startedAtMs': startedAtMs,
+        if (endedAtMs != null) 'endedAtMs': endedAtMs,
+        'itemIds': itemIds,
+        'attemptIds': attemptIds,
+        if (uploadedAtMs != null) 'uploadedAtMs': uploadedAtMs,
+      };
+
+  factory TeacherSession.fromJson(Map<String, Object?> json) {
+    return TeacherSession(
+      sessionId: json['sessionId']! as String,
+      startedAtMs: (json['startedAtMs'] as num?)?.toInt() ?? 0,
+      endedAtMs: (json['endedAtMs'] as num?)?.toInt(),
+      itemIds: _stringList(json['itemIds']),
+      attemptIds: _stringList(json['attemptIds']),
+      uploadedAtMs: (json['uploadedAtMs'] as num?)?.toInt(),
+    );
+  }
+
+  static List<String> _stringList(Object? raw) {
+    if (raw is! List) return const [];
+    return raw.whereType<String>().toList(growable: false);
+  }
+}
+
 /// 동기화용 문제 묶음.
 class DictationPackage {
   const DictationPackage({

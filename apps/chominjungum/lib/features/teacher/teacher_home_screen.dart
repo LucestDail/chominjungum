@@ -12,6 +12,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/dictation_models.dart';
 import '../../providers/dictation_providers.dart';
+import '../../services/dictation_repository.dart';
 import '../../services/jammin_add_word_service.dart';
 import '../../services/local_hub_service.dart';
 import '../../services/upsync_service.dart';
@@ -120,6 +121,17 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
       queue.removeWhere((s) => s.sessionId == session.sessionId);
       await _upsync.saveQueue(queue);
 
+      // 큐에서 빠져도 이력은 남는다 — 올린 시각만 표시해 둔다.
+      unawaited(
+        _repo.updateSession(
+          session.sessionId,
+          (s) => s.copyWith(
+            uploadedAtMs: DateTime.now().millisecondsSinceEpoch,
+            endedAtMs: session.endedAtMs,
+          ),
+        ),
+      );
+
       if (!mounted) return;
       final unassigned = result.unassignedDevices.length;
       setState(() {
@@ -178,25 +190,85 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
       hubPort: SyncDefaults.hubPort,
       hubHost: host.isEmpty ? null : host,
     );
+    final startedAtMs = DateTime.now().millisecondsSinceEpoch;
     setState(() {
       _hub = hub;
       _sessionKey = key;
       _pairing = payload;
       _pending = PendingSession(
         sessionId: sessionId,
-        startedAtMs: DateTime.now().millisecondsSinceEpoch,
+        startedAtMs: startedAtMs,
       );
     });
+    // 업싱크 큐와 별개로, 이 수업을 이력으로 남긴다
+    // (큐는 업로드가 성공하면 비워지지만 이력은 남아야 한다).
+    unawaited(
+      _repo.saveSession(
+        TeacherSession(sessionId: sessionId, startedAtMs: startedAtMs),
+      ),
+    );
   }
 
   Future<void> _stopHub() async {
+    final sessionId = _pending?.sessionId;
     await _hub?.stop();
+    if (sessionId != null) {
+      unawaited(
+        _repo.updateSession(
+          sessionId,
+          (s) => s.copyWith(endedAtMs: DateTime.now().millisecondsSinceEpoch),
+        ),
+      );
+    }
     setState(() {
       _hub = null;
       _pairing = null;
       _sessionKey = null;
       _connectedCount = 0;
     });
+  }
+
+  DictationRepository get _repo => ref.read(dictationRepositoryProvider);
+
+  /// 받은 답안을 이력으로 남기고 이 수업에 묶는다.
+  /// 저장 실패가 수업 진행을 막지 않는다(화면은 이미 제출을 보여줬다).
+  Future<void> _recordAttempt(AttemptSubmitPayload attempt) async {
+    try {
+      await _repo.saveReceivedAttempt(
+        attemptId: attempt.attemptId,
+        itemId: attempt.itemId,
+        deviceBindingId: attempt.deviceBindingId,
+        rawAnswer: attempt.rawAnswer,
+        correctCount: attempt.correctCount,
+        totalCount: attempt.totalCount,
+        submittedAtMs: attempt.submittedAtMs,
+        inputKind: attempt.inputKind,
+        matchesJson: attempt.matches == null
+            ? null
+            : jsonEncode([for (final m in attempt.matches!) m.toJson()]),
+      );
+      final sessionId = _pending?.sessionId;
+      if (sessionId != null) {
+        await _repo.updateSession(sessionId, (s) => s.withAttempt(attempt.attemptId));
+      }
+    } catch (_) {
+      // 이력 저장 실패는 수업을 멈추지 않는다
+    }
+  }
+
+  /// 낸 문제를 이력에 남긴다.
+  Future<void> _recordBroadcast(DictationItem item) async {
+    try {
+      await _repo.savePackage(
+        DictationPackage(version: DictationPackage.currentVersion, items: [item]),
+      );
+      final sessionId = _pending?.sessionId;
+      if (sessionId != null) {
+        await _repo.updateSession(sessionId, (s) => s.withItem(item.id));
+      }
+    } catch (_) {
+      // 위와 같다
+    }
   }
 
   /// 학생 제출 수신 — 같은 기기·같은 문항이면 최신 것으로 대체.
@@ -211,6 +283,7 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
     // 인터넷이 없어도 수업은 계속된다. 결과는 기기에 쌓아두고 나중에 올린다.
     _pending?.addAttempt(attempt);
     unawaited(_persistQueue());
+    unawaited(_recordAttempt(attempt));
   }
 
   Future<void> _broadcast() async {
@@ -226,6 +299,7 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
       ref.read(dictationPackageProvider.notifier).state = pkg;
       _pending?.addItem(item);
       unawaited(_persistQueue());
+      unawaited(_recordBroadcast(item));
       await hub.broadcastEncrypted(
         type: SyncMessageTypes.dictationPackage,
         plainBytes: pkg.toUtf8Bytes(),
