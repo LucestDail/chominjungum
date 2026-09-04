@@ -71,6 +71,8 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
           final pkg = tryDecodeDictationPackage(plain, env);
           if (pkg != null && mounted) {
             ref.read(dictationPackageProvider.notifier).state = pkg;
+            // 받은 문제를 남긴다 — 앱을 다시 켜도 그 문제로 이어서 풀 수 있게.
+            unawaited(ref.read(dictationRepositoryProvider).savePackage(pkg));
             _setStatus('문제 수신. 학습 화면으로 이동합니다.', tone: JamminStatusTone.success);
             context.push('/practice');
           }

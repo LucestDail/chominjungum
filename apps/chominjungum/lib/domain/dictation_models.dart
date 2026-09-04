@@ -68,6 +68,11 @@ class DictationItem {
 enum AttemptInputKind { keyboard, ocrCanvas, ocrImage }
 
 /// 학생 한 번의 답안.
+///
+/// 채점 결과를 [DictationScoreResult] 로 들고 있으면 저장할 수 없다 — 그 안의
+/// [HangulGlyph] 는 직렬화 대상이 아니다. 그래서 **저장 가능한 요약**으로 담는다:
+/// 맞은 개수·전체 개수와, 글자별 정오를 [matchesJson] (`[{i, ok, why}]`) 으로.
+/// `expectedGlyphsJson` 이 이미 같은 방식이라 표현이 일관된다.
 class DictationAttempt {
   const DictationAttempt({
     required this.id,
@@ -76,7 +81,10 @@ class DictationAttempt {
     required this.rawAnswer,
     required this.inputKind,
     required this.createdAtMs,
-    this.score,
+    this.correctCount,
+    this.totalCount,
+    this.matchesJson,
+    this.submittedAtMs,
   });
 
   final String id;
@@ -85,7 +93,71 @@ class DictationAttempt {
   final String rawAnswer;
   final AttemptInputKind inputKind;
   final int createdAtMs;
-  final DictationScoreResult? score;
+
+  final int? correctCount;
+  final int? totalCount;
+
+  /// 글자별 정오 `[{"i":0,"ok":true,"why":null}, …]` — 결과 화면의 오답 표시 원천.
+  final String? matchesJson;
+
+  /// 교사 허브에 **제출이 성공한** 시각. 아직 못 보냈으면 null
+  /// (허브에 연결되지 않아도 채점 이력은 로컬에 남는다).
+  final int? submittedAtMs;
+
+  bool get isSubmitted => submittedAtMs != null;
+
+  double get ratio {
+    final total = totalCount ?? 0;
+    if (total == 0) return 0;
+    return (correctCount ?? 0) / total;
+  }
+
+  int get scorePercent => (ratio * 100).round();
+
+  /// 채점 직후 만든다.
+  factory DictationAttempt.fromScore({
+    required String id,
+    required String itemId,
+    required String deviceBindingId,
+    required String rawAnswer,
+    required AttemptInputKind inputKind,
+    required int createdAtMs,
+    required DictationScoreResult score,
+  }) {
+    return DictationAttempt(
+      id: id,
+      itemId: itemId,
+      deviceBindingId: deviceBindingId,
+      rawAnswer: rawAnswer,
+      inputKind: inputKind,
+      createdAtMs: createdAtMs,
+      correctCount: score.correctCount,
+      totalCount: score.totalCount,
+      matchesJson: jsonEncode([
+        for (final m in score.matches)
+          {
+            'i': m.index,
+            'ok': m.isCorrect,
+            if (m.mismatchReason != null) 'why': m.mismatchReason,
+          },
+      ]),
+    );
+  }
+
+  DictationAttempt copyWith({int? submittedAtMs}) {
+    return DictationAttempt(
+      id: id,
+      itemId: itemId,
+      deviceBindingId: deviceBindingId,
+      rawAnswer: rawAnswer,
+      inputKind: inputKind,
+      createdAtMs: createdAtMs,
+      correctCount: correctCount,
+      totalCount: totalCount,
+      matchesJson: matchesJson,
+      submittedAtMs: submittedAtMs ?? this.submittedAtMs,
+    );
+  }
 
   Map<String, Object?> toJson() => {
         'id': id,
@@ -94,8 +166,30 @@ class DictationAttempt {
         'rawAnswer': rawAnswer,
         'inputKind': inputKind.name,
         'createdAtMs': createdAtMs,
-        if (score != null) 'scoreRatio': score!.ratio,
+        if (correctCount != null) 'correctCount': correctCount,
+        if (totalCount != null) 'totalCount': totalCount,
+        if (matchesJson != null) 'matchesJson': matchesJson,
+        if (submittedAtMs != null) 'submittedAtMs': submittedAtMs,
       };
+
+  factory DictationAttempt.fromJson(Map<String, Object?> json) {
+    return DictationAttempt(
+      id: json['id']! as String,
+      itemId: json['itemId']! as String,
+      deviceBindingId: json['deviceBindingId']! as String,
+      rawAnswer: json['rawAnswer']! as String,
+      inputKind: AttemptInputKind.values.firstWhere(
+        (e) => e.name == json['inputKind'],
+        // 옛 기록이나 알 수 없는 값은 기본 입력으로 본다 (읽기가 실패하면 안 된다)
+        orElse: () => AttemptInputKind.keyboard,
+      ),
+      createdAtMs: (json['createdAtMs'] as num?)?.toInt() ?? 0,
+      correctCount: (json['correctCount'] as num?)?.toInt(),
+      totalCount: (json['totalCount'] as num?)?.toInt(),
+      matchesJson: json['matchesJson'] as String?,
+      submittedAtMs: (json['submittedAtMs'] as num?)?.toInt(),
+    );
+  }
 }
 
 /// 동기화용 문제 묶음.

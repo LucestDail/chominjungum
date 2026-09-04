@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hangul_core/hangul_core.dart';
@@ -35,6 +37,10 @@ class _AttemptSubmitSheetState extends ConsumerState<AttemptSubmitSheet> {
   final _controllers = <int, TextEditingController>{};
   final _results = <int, DictationScoreResult>{};
   final _submitted = <int>{};
+
+  /// 문항별 답안 id. 채점할 때 만들어 **로컬 이력과 교사 제출이 같은 id 를 쓰게** 한다
+  /// (서버 업싱크가 `attemptId` 로 멱등하므로, 재전송해도 중복이 생기지 않는다).
+  final _attemptIds = <int, String>{};
   String? _status;
   JamminStatusTone _statusTone = JamminStatusTone.info;
 
@@ -53,14 +59,55 @@ class _AttemptSubmitSheetState extends ConsumerState<AttemptSubmitSheet> {
   void _score(int index, DictationItem item) {
     final answer = _controllerFor(index).text.trim();
     if (answer.isEmpty) return;
+    final result = DictationCompare.score(
+      expected: item.expectedText,
+      actual: answer,
+    );
+    // 다시 채점하면 답이 바뀐 것이므로 새 시도로 본다.
+    final attemptId = const Uuid().v4();
     setState(() {
-      _results[index] = DictationCompare.score(
-        expected: item.expectedText,
-        actual: answer,
-      );
+      _results[index] = result;
+      _attemptIds[index] = attemptId;
       _submitted.remove(index);
       _status = null;
     });
+    // 허브에 연결되지 않아도 채점 이력은 남는다.
+    unawaited(_persistAttempt(attemptId, item, answer, result));
+  }
+
+  /// 제출 시각 기록 — 실패해도 조용히 넘어간다(제출 자체는 이미 성공했다).
+  Future<void> _markSubmittedQuietly(String attemptId) async {
+    try {
+      await ref
+          .read(dictationRepositoryProvider)
+          .markSubmitted(attemptId, DateTime.now().millisecondsSinceEpoch);
+    } catch (_) {
+      // 이력 갱신 실패가 제출 결과를 바꾸지는 않는다
+    }
+  }
+
+  Future<void> _persistAttempt(
+    String attemptId,
+    DictationItem item,
+    String answer,
+    DictationScoreResult result,
+  ) async {
+    try {
+      final deviceId = await ref.read(deviceBindingIdProvider.future);
+      await ref.read(dictationRepositoryProvider).saveAttempt(
+            DictationAttempt.fromScore(
+              id: attemptId,
+              itemId: item.id,
+              deviceBindingId: deviceId,
+              rawAnswer: answer,
+              inputKind: AttemptInputKind.keyboard,
+              createdAtMs: DateTime.now().millisecondsSinceEpoch,
+              score: result,
+            ),
+          );
+    } catch (_) {
+      // 저장 실패가 채점·제출을 막아서는 안 된다 (화면은 이미 결과를 보여줬다)
+    }
   }
 
   Future<void> _submit(int index, DictationItem item) async {
@@ -69,8 +116,10 @@ class _AttemptSubmitSheetState extends ConsumerState<AttemptSubmitSheet> {
     if (result == null || client == null) return;
 
     final deviceId = await ref.read(deviceBindingIdProvider.future);
+    // 채점 때 만든 id 를 그대로 쓴다 (로컬 이력 ↔ 교사 제출 ↔ 서버 업싱크가 같은 키).
+    final attemptId = _attemptIds[index] ?? const Uuid().v4();
     final payload = AttemptSubmitPayload(
-      attemptId: const Uuid().v4(),
+      attemptId: attemptId,
       itemId: item.id,
       expectedText: item.expectedText,
       rawAnswer: _controllerFor(index).text.trim(),
@@ -90,6 +139,10 @@ class _AttemptSubmitSheetState extends ConsumerState<AttemptSubmitSheet> {
         type: SyncMessageTypes.attemptSubmit,
         plainBytes: payload.toUtf8Bytes(),
       );
+      // 여기까지 왔으면 제출은 나간 것이다.
+      // 이력에 시각을 남기는 건 부수적이므로, 그 실패가 제출 성공을 뒤집지 않게 분리한다
+      // (저장소가 없는 환경에서 "제출 실패"로 보이면 사실과 다르다).
+      unawaited(_markSubmittedQuietly(attemptId));
       if (!mounted) return;
       setState(() {
         _submitted.add(index);

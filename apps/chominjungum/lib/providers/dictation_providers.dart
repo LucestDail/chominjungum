@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/dictation_models.dart';
 import '../services/bundled_dictation_loader.dart';
 import '../services/device_binding_id.dart';
+import '../services/dictation_repository.dart';
 import '../services/jammin_add_word_service.dart';
 import '../services/local_hub_service.dart';
 import 'package:hangul_core/hangul_core.dart';
@@ -17,6 +18,11 @@ final dictationPackageProvider = StateProvider<DictationPackage?>((ref) => null)
 
 /// 학생 기기가 연결 중인 교사 허브 클라이언트 (미연결이면 null).
 final studentHubClientProvider = StateProvider<StudentHubClient?>((ref) => null);
+
+/// 문제·답안의 로컬 이력.
+final dictationRepositoryProvider = Provider<DictationRepository>((ref) {
+  return const DictationRepository();
+});
 
 /// 기기 단위 안정 ID (제출 시 학생 식별자).
 final deviceBindingIdProvider = FutureProvider<String>((ref) {
