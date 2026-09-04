@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:network_info_plus/network_info_plus.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:sync_protocol/sync_protocol.dart';
 import 'package:uuid/uuid.dart';
 
@@ -21,6 +20,7 @@ import '../../widgets/jammin/jammin_brand_title.dart';
 import '../../widgets/jammin/jammin_scaffold.dart';
 import '../../widgets/jammin/jammin_section.dart';
 import '../../widgets/jammin/jammin_status_banner.dart';
+import 'pairing_info_card.dart';
 
 /// 교사: 로컬 허브 시작·QR·문제 전송.
 class TeacherHomeScreen extends ConsumerStatefulWidget {
@@ -356,30 +356,10 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
           ],
           if (_pairing != null && (_pairing!.hubHost ?? '').isNotEmpty) ...[
             const SizedBox(height: 28),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    Text(
-                      '학생 스캔용 QR',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    QrImageView(
-                      data: _pairing!.encode(),
-                      version: QrVersions.auto,
-                      size: 220,
-                      backgroundColor: JamminTokens.surfaceElevated,
-                    ),
-                    const SizedBox(height: 12),
-                    SelectableText(
-                      _pairing!.encode(),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
+            // key 에 세션 id 를 주어, 새 수업을 열면 "연결 정보 보기"가 다시 접힌다.
+            PairingInfoCard(
+              key: ValueKey(_pairing!.sessionId),
+              pairing: _pairing!,
             ),
           ],
           const SizedBox(height: 32),
