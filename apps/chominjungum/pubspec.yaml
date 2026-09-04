@@ -45,6 +45,9 @@ flutter:
     - assets/hangul/
     - assets/images/
     - assets/data/default_dictation.json
+    # KCC도담도담체는 OFL 이다 — 재배포 시 라이선스 사본을 함께 넣어야 한다.
+    # (출처: 공유마당/한국저작권위원회. jammin 동봉 고지와 동일한 파일)
+    - assets/fonts/KCCDodamdodam-LICENSE.txt
   fonts:
     - family: KCCDodamdodamR
       fonts:
