@@ -1,0 +1,30 @@
+# Dart / Flutter 빌드 산출물
+#
+# 이 파일이 없어서 build/ 16개 · .dart_tool/ 12개가 저장소에 들어와 있었다.
+# 테스트를 한 번 돌리면 캐시(.dill)가 바뀌어 **브랜치 전환이 막힌다**
+# (2026-09-05에 실제로 병합이 중단됐다).
+.dart_tool/
+build/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+*.dill
+
+# 로컬 설정
+pubspec_overrides.yaml
+
+# 에디터
+.idea/
+*.iml
+.vscode/
+
+# macOS
+.DS_Store
+
+# 플랫폼별 산출물
+**/ios/Flutter/.last_build_id
+**/ios/Pods/
+**/android/.gradle/
+**/android/local.properties
+**/android/key.properties
+**/macos/Pods/
