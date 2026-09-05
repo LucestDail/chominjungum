@@ -322,6 +322,13 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
   Widget build(BuildContext context) {
     return JamminScaffold(
       titleWidget: const JamminBrandTitle(subtitle: '교사'),
+      actions: [
+        IconButton(
+          tooltip: '설정',
+          icon: const Icon(Icons.settings_outlined),
+          onPressed: () => context.push('/settings'),
+        ),
+      ],
       body: ListView(
         children: [
           const JamminSectionHeader(
