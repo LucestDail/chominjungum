@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:sync_protocol/sync_protocol.dart';
 import 'package:test/test.dart';

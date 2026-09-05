@@ -28,7 +28,7 @@ class DictationCompare {
     required String actual,
   }) {
     if (!HangulUtil.isHangul(expected)) {
-      return DictationScoreResult(
+      return const DictationScoreResult(
         correctCount: 0,
         totalCount: 0,
         ratio: 0,
