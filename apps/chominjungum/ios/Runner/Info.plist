@@ -49,8 +49,15 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>교사 QR 코드를 스캔하기 위해 카메라가 필요합니다.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>받아쓰기 채점을 위해 갤러리 이미지를 선택합니다.</string>
+	<!--
+	  iOS 14+ 는 이 문구가 없으면 로컬 네트워크 접속을 아예 허용하지 않는다.
+	  학생 기기가 교사 기기의 허브(ws://<교사 LAN IP>:30020)에 붙는 것이 이 앱의
+	  동작 방식이므로 반드시 필요하다. ⚠️시뮬레이터에는 이 제약이 없어서
+	  키가 빠져 있어도 통과한다 — 실기기 교실 왕복에서만 드러난다.
+	  QR 로 교사 IP 를 직접 받으므로 Bonjour(NSBonjourServices)는 쓰지 않는다.
+	-->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>같은 Wi-Fi에 있는 교사·학생 기기끼리 문제와 답안을 주고받습니다. 인터넷으로 나가지 않습니다.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

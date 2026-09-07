@@ -1,8 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 교사 QR 스캔 -->
     <uses-permission android:name="android.permission.CAMERA"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+    <!-- usesCleartextTraffic: 교실 LAN 허브가 평문 ws:// 다(교사 기기에 TLS 인증서가 없다).
+         Android 9+ 는 평문을 기본 차단하므로 이 플래그가 없으면 학생이 연결하지 못한다. -->
     <application
         android:label="@string/app_name"
         android:name="${applicationName}"
