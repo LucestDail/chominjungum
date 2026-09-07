@@ -261,8 +261,15 @@ M3 + jammin 톤. 상세 토큰은 기존 설계 유지.
 | 상태·라우팅 | Riverpod, go_router |
 | 로컬 | Hive (init), flutter_secure_storage |
 | 동기화 | shelf, web_socket_channel, sync_protocol, cryptography |
-| OCR·QR | google_mlkit_text_recognition, mobile_scanner 7, qr_flutter, image_picker |
+| QR | mobile_scanner 7, qr_flutter |
 | 백엔드 | 없음 (기본) |
+
+> **2026-09-07**: ML Kit(`google_mlkit_text_recognition`)과 `image_picker` 를 뺐다.
+> ML Kit 은 arm64 시뮬레이터 슬라이스가 없어 빌드가 x86_64 전용으로 떨어지고,
+> Apple Silicon + iOS 26 시뮬레이터에서 실행 자체가 안 됐다. `OcrService` 는
+> 사용처가 0이었다(손글씨는 캔버스로 받고 채점은 `DictationCompare` 가 한다).
+> Phase 2 의 "OCR 강화"를 다시 할 때는 시뮬레이터 검증을 포기하지 않는 대안
+> (Apple Vision / on-device Tesseract / 서버 OCR)을 먼저 따질 것.
 
 ---
 
@@ -281,3 +288,88 @@ M3 + jammin 톤. 상세 토큰은 기존 설계 유지.
 
 - [README.md](README.md) — 실행 방법·포트·저장소 구조
 - [jammin](../jammin) — 웹 원본·`HangulUtil`·받아쓰기 워크시트
+
+---
+
+## 11. 2026-09-07 — 시뮬레이터 검증에서 드러난 것 (리허설 전 조치)
+
+시뮬레이터 2대(교사 iPhone 17 Pro Max / 학생 iPhone 17 Pro)를 띄워 왕복을 시도하다
+**자동 테스트 107개가 전부 통과하는데도 살아 있던 버그 3건**을 찾았다.
+공통점: 셋 다 "코드는 맞고 환경에서만 터지는" 종류여서 단위·위젯 테스트로는 잡히지 않았다.
+
+### 🔴 A. 출제가 원격 jammin 서버에 의존하고 있었다 — 전제 위반
+
+교사가 문제를 낼 때마다 `POST https://초민정음.com/addWord` 로 자모 분해를 요청했다.
+시뮬레이터에서 `CERTIFICATE_VERIFY_FAILED` 로 출제가 통째로 실패하면서 드러났다.
+
+**이건 단순 오류가 아니라 이 앱의 존재 이유를 부정한다.** "중앙 서버 없이 같은 Wi-Fi
+안에서 교사·학생 기기가 직접 동기화"가 설계 전제인데, 정작 첫 단계인 출제가 인터넷
+없이는 불가능했다. 교실 Wi-Fi 가 외부로 안 나가거나 사설망이면 수업을 시작조차 못 한다.
+
+- 로컬 분해 경로는 **처음부터 있었다**(`DictationItem.fromExpectedText`). 쓰지 않았을 뿐이다.
+- `HangulUtil` 이 jammin 원본과 같은 결과를 낸다는 것은 골든 벡터가 이미 강제하므로,
+  정확성을 잃지 않고 원격을 뗄 수 있었다.
+- ⇒ `DictationComposer.compose()` (순수 함수, 네트워크 없음) + 회귀 가드 테스트.
+- 왜 기존 왕복 테스트가 못 잡았나: `hub_attempt_flow_test` 가 `broadcastEncrypted` 를
+  **직접** 불러서 출제 앞단(분해)을 지나가지 않았다.
+
+학생 연습 화면의 "서버에서 갱신"은 그대로 둔다 — 사용자가 직접 누르는 선택 기능이고
+실패해도 번들 스냅샷으로 계속 동작한다.
+
+### 🔴 B. iOS 로컬 네트워크 권한 선언이 없었다 — 실기기에서만 터진다
+
+`NSLocalNetworkUsageDescription` 이 `Info.plist` 에 없었다. iOS 14+ 는 이 문구가 없으면
+로컬 네트워크 접속을 **아예 허용하지 않는다** → 학생 기기가 교사 허브에 붙지 못한다.
+
+⚠️**시뮬레이터에는 이 제약이 없다.** 그래서 지금까지의 모든 검증을 통과했고,
+실기기 리허설 첫 연결부터 막혔을 것이다. 리허설 당일 원인을 찾느라 시간을 다 썼을 자리다.
+
+Android 는 `usesCleartextTraffic="true"` 가 이미 있어 평문 `ws://` 가 동작한다
+(교사 기기에 TLS 인증서가 없으니 허브는 평문일 수밖에 없다).
+
+⇒ 이런 선언은 **실기기에서만 실패가 드러나 테스트가 유일한 방어선**이므로
+`test/platform_manifest_test.dart` 로 존재를 강제한다.
+
+### 🔴 C. 업싱크 토큰이 게이트웨이 Basic 을 덮어쓰고 있었다
+
+앱이 `Authorization: Bearer <앱 JWT>` 로 보냈다. 서버가 nginx 뒤에 있고 외부 요청에는
+HTTP Basic 을 요구하므로, 같은 헤더에 Bearer 를 실으면 Basic 이 덮여 **게이트웨이에서
+401** 이 되고 토큰이 서버에 닿지도 못한다. ⇒ `X-Auth-Token` 으로 변경.
+
+외부 경로 실측으로 가른 것:
+
+| 보낸 방식 | 결과 |
+|---|---|
+| Basic + `Authorization: Bearer` | nginx 401 (`WWW-Authenticate: Basic`) — 서버 미도달 |
+| Basic + `X-Auth-Token` | 서버 도달 |
+
+진짜 교사 토큰으로 왕복까지 실측: 1차 `accepted:1 duplicated:0` /
+2차(같은 배치) `accepted:0 duplicated:1` — 09-05 에 고친 업싱크 멱등성이
+라이브에서 의도대로 동작하는 것도 함께 확인됐다.
+
+### ⚠️ 남은 결정 — 앱은 게이트웨이 Basic 자격을 보낼 수 없다
+
+헤더를 고쳤어도 **외부 도메인으로는 여전히 못 올린다.** 게이트웨이가 Basic 을 요구하는데
+`UpsyncConfig` 에는 `baseUrl`·`token`·`classroomId` 만 있고 Basic 자격을 넣을 자리가 없다.
+설정 화면 힌트가 `http://192.168.0.10:8100` 인 것에서 보이듯 **원래 LAN 직결을 전제**한
+설계다. 교실에서 바로 올리려면 셋 중 하나를 골라야 한다:
+
+1. `UpsyncConfig` 에 게이트웨이 자격(id/pw) 필드 추가 — 앱에 게이트 비번을 두는 셈
+2. nginx 에서 `/chominjungum/api/sync/` 만 gwauth 예외 — 서버 JWT 가 이미 인증이므로
+   이중 인증이 불필요하다는 판단. `/haru/`(자체 api-key)가 같은 선례
+3. 교실에서는 올리지 않고 교사가 나중에 서버가 있는 망에서 올린다 — **현재 설계**.
+   Hive 큐가 보존하므로 그대로 동작하고, 코드 변경이 없다
+
+⇒ 보안·운영 판단이 섞여 있어 사람 결정으로 남긴다.
+
+### 검증 현황
+
+**123 GREEN** (앱 82 / hangul_core 30 / sync_protocol 11) · `flutter analyze` 0
+시뮬레이터 빌드 아키텍처 `x86_64 arm64` 회복 · 빌드 156초 → 25초
+
+### 실기기에서만 남는 것
+
+- QR **카메라** 스캔 (시뮬레이터에 카메라가 없다 — 이번엔 페이로드 붙여넣기로 우회했다)
+- 서로 다른 기기 간 LAN 도달성 (`NetworkInfo` 가 준 IP 가 학생 기기에서 실제로 열리는가)
+- iOS 로컬 네트워크 권한 **프롬프트 수락** 흐름 (B 를 고쳐 이제 프롬프트가 뜬다)
+- 손글씨 터치 입력 품질
