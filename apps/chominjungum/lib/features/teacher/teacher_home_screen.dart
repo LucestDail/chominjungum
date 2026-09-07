@@ -11,8 +11,8 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/dictation_models.dart';
 import '../../providers/dictation_providers.dart';
+import '../../services/dictation_composer.dart';
 import '../../services/dictation_repository.dart';
-import '../../services/jammin_add_word_service.dart';
 import '../../services/local_hub_service.dart';
 import '../../services/upsync_service.dart';
 import '../../theme/jammin_tokens.dart';
@@ -293,8 +293,8 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
     final text = _sentence.text.trim();
     if (text.isEmpty) return;
     try {
-      final glyphs = await JamminAddWordService().addWord(text);
-      final item = DictationItem.fromGlyphs(text, glyphs);
+      // 분해는 기기에서 한다 — 교실에 인터넷이 없어도 출제되어야 한다. DictationComposer 주석 참조.
+      final item = DictationComposer.compose(text);
       final pkg = DictationPackage(version: DictationPackage.currentVersion, items: [item]);
       ref.read(dictationPackageProvider.notifier).state = pkg;
       _pending?.addItem(item);
@@ -312,7 +312,7 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('jammin 분해 실패: $e')),
+          SnackBar(content: Text('출제 실패: $e')),
         );
       }
     }
