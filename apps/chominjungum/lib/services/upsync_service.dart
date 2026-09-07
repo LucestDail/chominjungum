@@ -201,7 +201,12 @@ class UpsyncService {
         uri,
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
-          'Authorization': 'Bearer ${config.token.trim()}',
+          // ★앱 토큰은 전용 헤더로 보낸다. 서버가 게이트웨이(nginx) 뒤에 있고
+          // 외부 요청에는 HTTP Basic 을 요구하므로, `Authorization` 에 Bearer 를 실으면
+          // Basic 을 덮어써 **게이트웨이에서 401** 이 되고 토큰이 서버에 닿지도 못한다.
+          // 서버는 X-Auth-Token 을 먼저 본다(JwtAuthFilter.TOKEN_HEADER).
+          // 2026-09-07 외부 경로 실측: Basic+Bearer → nginx 401 / Basic+X-Auth-Token → 서버 도달.
+          'X-Auth-Token': config.token.trim(),
         },
         body: jsonEncode(body),
       );

@@ -97,7 +97,14 @@ void main() {
       final result = await service.upload(config, session);
 
       expect(captured.url.path, '/api/sync/sessions');
-      expect(captured.headers['Authorization'], 'Bearer token-abc');
+      // 앱 토큰은 전용 헤더로. Authorization 은 게이트웨이 Basic 전용이므로 건드리지 않는다
+      // (Bearer 를 실으면 Basic 을 덮어써 nginx 에서 401 — 2026-09-07 외부 경로 실측).
+      expect(captured.headers['X-Auth-Token'], 'token-abc');
+      expect(
+        captured.headers.keys.map((k) => k.toLowerCase()),
+        isNot(contains('authorization')),
+        reason: 'Authorization 을 쓰면 게이트웨이 Basic 과 충돌해 외부 업싱크가 전부 401 이 된다',
+      );
 
       final body = jsonDecode(captured.body) as Map<String, Object?>;
       expect(body['sessionId'], 'sess-1');
