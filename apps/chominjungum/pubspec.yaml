@@ -35,6 +35,11 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  # 실기기·시뮬레이터에서 앱을 실제로 띄워 돌린다. 위젯 테스트로는 닿지 않는 것
+  # (NetworkInfo 플러그인이 묶인 교사 화면, 실제 Hive 파일 I/O, iOS 로컬 네트워크 권한)이
+  # 여기서만 검증된다. 실행: flutter test integration_test -d <device>
+  integration_test:
+    sdk: flutter
   flutter_lints: ^6.0.0
 
 flutter:

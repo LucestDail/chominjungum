@@ -22,6 +22,20 @@ import '../../widgets/jammin/jammin_section.dart';
 import '../../widgets/jammin/jammin_status_banner.dart';
 import 'pairing_info_card.dart';
 
+/// 통합 테스트가 교사 화면 요소를 찾는 손잡이.
+///
+/// 라벨 문구로 찾으면 문구를 다듬는 순간 테스트가 깨진다. 교사 화면은
+/// `NetworkInfo` 플러그인에 묶여 **위젯 테스트가 불가능**해서 실기동
+/// 통합 테스트가 유일한 검증 수단이므로, 그 손잡이를 코드로 고정해 둔다.
+class TeacherHomeKeys {
+  const TeacherHomeKeys._();
+
+  static const hostOverride = Key('teacher.hostOverride');
+  static const startHub = Key('teacher.startHub');
+  static const sentence = Key('teacher.sentence');
+  static const broadcast = Key('teacher.broadcast');
+}
+
 /// 교사: 로컬 허브 시작·QR·문제 전송.
 class TeacherHomeScreen extends ConsumerStatefulWidget {
   const TeacherHomeScreen({super.key});
@@ -337,6 +351,8 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
           ),
           const SizedBox(height: 24),
           TextField(
+            // Key 는 통합 테스트가 필드를 찾는 안정된 손잡이다(라벨 문구는 바뀔 수 있다).
+            key: TeacherHomeKeys.hostOverride,
             controller: _hostOverride,
             decoration: const InputDecoration(
               labelText: '허브 IP (자동 인식 실패 시)',
@@ -347,6 +363,7 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
           Row(
             children: [
               FilledButton(
+                key: TeacherHomeKeys.startHub,
                 onPressed: _hub == null ? _startHub : null,
                 child: const Text('허브 시작'),
               ),
@@ -379,6 +396,7 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
           ),
           const SizedBox(height: 16),
           TextField(
+            key: TeacherHomeKeys.sentence,
             controller: _sentence,
             decoration: const InputDecoration(
               labelText: '받아쓰기 정답 문장',
@@ -386,6 +404,7 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
           ),
           const SizedBox(height: 12),
           FilledButton(
+            key: TeacherHomeKeys.broadcast,
             onPressed: _hub != null ? _broadcast : null,
             child: const Text('문제 전송 (암호화)'),
           ),
