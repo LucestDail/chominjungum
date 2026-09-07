@@ -34,6 +34,10 @@ class TeacherHomeKeys {
   static const startHub = Key('teacher.startHub');
   static const sentence = Key('teacher.sentence');
   static const broadcast = Key('teacher.broadcast');
+  static const serverUrl = Key('teacher.serverUrl');
+  static const serverToken = Key('teacher.serverToken');
+  static const classroomId = Key('teacher.classroomId');
+  static const uploadNow = Key('teacher.uploadNow');
 }
 
 /// 교사: 로컬 허브 시작·QR·문제 전송.
@@ -442,6 +446,7 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
         ),
         const SizedBox(height: 16),
         TextField(
+          key: TeacherHomeKeys.serverUrl,
           controller: _serverUrl,
           decoration: const InputDecoration(
             labelText: '서버 주소',
@@ -450,12 +455,14 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
         ),
         const SizedBox(height: 12),
         TextField(
+          key: TeacherHomeKeys.serverToken,
           controller: _serverToken,
           obscureText: true,
           decoration: const InputDecoration(labelText: '교사 토큰'),
         ),
         const SizedBox(height: 12),
         TextField(
+          key: TeacherHomeKeys.classroomId,
           controller: _classroomId,
           decoration: const InputDecoration(labelText: '학급 ID'),
         ),
@@ -463,6 +470,7 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
         Row(
           children: [
             FilledButton(
+              key: TeacherHomeKeys.uploadNow,
               onPressed: _uploading || pendingCount == 0 ? null : _uploadNow,
               child: Text(_uploading ? '올리는 중…' : '지금 올리기 ($pendingCount건)'),
             ),

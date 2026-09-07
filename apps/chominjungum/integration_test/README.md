@@ -52,8 +52,57 @@ flutter test integration_test -d <device-id>
 7. **교사 현황판 반영** — 접속 수·제출 건수·평균
 8. **Hive 실파일 영속화** — 문항·답안·세션이 실제로 디스크에 남는지
 
+## 실서버 업싱크까지 태우기 (선택 · 9단계)
+
+서버 정보를 주면 앱의 업싱크 경로를 **끝까지** 검증한다. 안 주면 그 단계를 건너뛴다.
+
+⚠️ 게이트웨이(nginx)는 외부 요청에 HTTP Basic 을 요구하고 **앱은 그 자격을 보낼 수
+없다**(`UpsyncConfig` 에 필드가 없다 — 원래 LAN 직결 전제 설계다). 그래서 검증은
+SSH 터널로 서버에 직결한다. 서버는 이 요청을 `127.0.0.1` 로 보므로 게이트를 지나지 않는다.
+
+```bash
+# 1) 터널 (서버는 이 요청을 로컬로 본다 → gwauth 우회)
+ssh -f -N -L 18100:127.0.0.1:8100 homelab25
+
+# 2) 교사 토큰
+TOKEN=$(curl -s -X POST http://127.0.0.1:18100/api/auth/teacher/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"<교사 이메일>","password":"<비번>"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["token"])')
+
+# 3) 학급 UUID
+curl -s http://127.0.0.1:18100/api/classrooms -H "X-Auth-Token: $TOKEN"
+
+# 4) 실행
+flutter test integration_test -d <기기> \
+  --dart-define=UPSYNC_URL=http://127.0.0.1:18100 \
+  --dart-define=UPSYNC_TOKEN="$TOKEN" \
+  --dart-define=UPSYNC_CLASSROOM=<학급 UUID>
+
+# 5) 터널 정리
+pkill -f 'ssh -f -N -L 18100'
+```
+
+성공하면 화면 배너가 `업로드 완료 — 신규 1건 · 명단 연결 필요한 기기 1대` 다
+(기기가 학생 명단에 아직 안 묶여 있으면 "명단 연결 필요"가 정상이다).
+
+🔴 **이 단계는 실서버에 세션·답안 행을 남긴다.** 리허설 전에 지울 것:
+
+```sql
+-- 남은 것 확인 후
+DELETE FROM attempt WHERE session_id='<세션>';
+DELETE FROM exam_session WHERE id='<세션>';
+```
+
+문항은 `contentHash` 로 재사용되므로 같은 문장이면 새로 생기지 않는다(실측 확인).
+
 ## 주의
 
 - 허브 포트는 `SyncDefaults.hubPort`(30020) 고정이다. 다른 프로세스가 쓰고 있으면 실패한다
 - 테스트는 끝에 `LocalStore.clearAll()` 로 자기가 만든 것을 지운다.
   실기기에 실제 수업 이력이 있으면 **함께 지워진다** — 리허설 데이터를 남겨야 하면 먼저 확인할 것
+- **교사 화면은 긴 스크롤 화면이다.** 화면 밖 위젯을 `tap` 하면 **예외 없이 빗나가서**
+  "눌렀는데 아무 일도 안 일어난" 것처럼 보인다(첫 실행에서 겪었다 — "연결 정보 보기"를
+  펼치자 내용이 길어져 "숨기기" 버튼이 밖으로 밀렸다). 그래서 조작은 전부
+  `tapVisible`/`typeVisible`(= `ensureVisible` 후 조작)을 쓴다
+- **서버는 `attemptId`·`sessionId`·`classroomId` 를 UUID 로 검증한다.** 아무 문자열을
+  넣으면 인증을 통과하고도 400 이 된다(여기서 한 번 걸렸다). 앱은 `Uuid().v4()` 를 쓴다

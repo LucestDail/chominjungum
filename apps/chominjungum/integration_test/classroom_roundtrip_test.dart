@@ -11,11 +11,14 @@ import 'package:chominjungum/providers/app_role_provider.dart';
 import 'package:chominjungum/services/dictation_repository.dart';
 import 'package:chominjungum/services/local_hub_service.dart';
 import 'package:chominjungum/services/local_store.dart';
+import 'package:chominjungum/widgets/jammin/jammin_status_banner.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hangul_core/hangul_core.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:sync_protocol/sync_protocol.dart';
+import 'package:uuid/uuid.dart';
 
 /// 교실 한 사이클을 **실기동**으로 통과시킨다.
 ///
@@ -23,8 +26,31 @@ import 'package:sync_protocol/sync_protocol.dart';
 /// 요약: 교사 화면은 `NetworkInfo` 플러그인에 묶여 위젯 테스트가 아예 불가능했고,
 /// 기존 e2e 는 `broadcastEncrypted` 를 직접 불러 **출제 앞단(자모 분해)을 지나가지
 /// 않았다**. 그 틈에서 "출제가 원격 서버에 의존" 하는 버그가 107 GREEN 아래 살아 있었다.
+/// `--dart-define` 으로 넘기는 실서버 정보. 비어 있으면 업싱크 단계를 건너뛴다.
+const upsyncUrl = String.fromEnvironment('UPSYNC_URL');
+const upsyncToken = String.fromEnvironment('UPSYNC_TOKEN');
+const upsyncClassroom = String.fromEnvironment('UPSYNC_CLASSROOM');
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  /// 교사 화면은 긴 스크롤 화면이다. 화면 밖 위젯을 `tap` 하면 **예외 없이 빗나가서**
+  /// "눌렀는데 아무 일도 안 일어난" 것처럼 보인다(첫 실행에서 정확히 이걸 겪었다 —
+  /// "연결 정보 보기"를 펼치자 내용이 길어져 "숨기기" 버튼이 화면 밖으로 밀렸다).
+  /// 그래서 모든 조작 전에 먼저 스크롤로 끌어온다.
+  Future<void> tapVisible(WidgetTester t, Finder f) async {
+    await t.ensureVisible(f);
+    await t.pumpAndSettle();
+    await t.tap(f);
+    await t.pumpAndSettle();
+  }
+
+  Future<void> typeVisible(WidgetTester t, Finder f, String text) async {
+    await t.ensureVisible(f);
+    await t.pumpAndSettle();
+    await t.enterText(f, text);
+    await t.pumpAndSettle();
+  }
 
   setUpAll(() async {
     await LocalStore.initForApp();
@@ -51,11 +77,10 @@ void main() {
         reason: '교사 화면이 렌더되어야 한다 (위젯 테스트로는 여기까지 오지 못했다)');
 
     // 시뮬레이터는 Wi-Fi IP 를 못 줄 수 있다. 학생이 같은 프로세스에 있으니 루프백을 쓴다.
-    await tester.enterText(find.byKey(TeacherHomeKeys.hostOverride), '127.0.0.1');
-    await tester.pumpAndSettle();
+    await typeVisible(tester, find.byKey(TeacherHomeKeys.hostOverride), '127.0.0.1');
 
     // ── 2. 허브 기동 — 실제 WebSocket 서버 바인딩 ────────────────────────
-    await tester.tap(find.byKey(TeacherHomeKeys.startHub));
+    await tapVisible(tester, find.byKey(TeacherHomeKeys.startHub));
     // 소켓 I/O 는 runAsync 안에서만 진행된다.
     await tester.runAsync(() => Future<void>.delayed(const Duration(seconds: 2)));
     await tester.pumpAndSettle();
@@ -69,11 +94,9 @@ void main() {
     final encoded = pairing.encode();
     expect(find.text(encoded), findsNothing,
         reason: '세션 키가 든 문자열이 기본 노출되면 안 된다');
-    await tester.tap(find.text('연결 정보 보기 (QR을 못 읽을 때)'));
-    await tester.pumpAndSettle();
+    await tapVisible(tester, find.text('연결 정보 보기 (QR을 못 읽을 때)'));
     expect(find.text(encoded), findsOneWidget);
-    await tester.tap(find.text('숨기기'));
-    await tester.pumpAndSettle();
+    await tapVisible(tester, find.text('숨기기'));
     expect(find.text(encoded), findsNothing);
 
     // ── 4. 학생 연결 — 실제 WS + AES-GCM ────────────────────────────────
@@ -100,9 +123,8 @@ void main() {
     // 여기가 핵심이다. 이 경로가 DictationComposer(기기 내 분해)를 지나야 하고,
     // **인터넷이 없어도 성공해야 한다**. 원격 jammin 호출로 되돌아가면 여기서 깨진다.
     const sentence = '학교에 갔다.';
-    await tester.enterText(find.byKey(TeacherHomeKeys.sentence), sentence);
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(TeacherHomeKeys.broadcast));
+    await typeVisible(tester, find.byKey(TeacherHomeKeys.sentence), sentence);
+    await tapVisible(tester, find.byKey(TeacherHomeKeys.broadcast));
     await tester.runAsync(() => Future<void>.delayed(const Duration(seconds: 2)));
     await tester.pumpAndSettle();
 
@@ -127,7 +149,11 @@ void main() {
       actual: wrongAnswer,
     );
     final attempt = AttemptSubmitPayload(
-      attemptId: 'itest-attempt-1',
+      // ⚠️서버는 attemptId·sessionId·classroomId 를 **UUID 로 검증**한다
+      // (`SyncDtos.SyncAttempt.attemptId` 가 `UUID` 타입). 아무 문자열을 넣으면
+      // 인증을 통과하고도 400 이 된다 — 실제로 여기서 한 번 걸렸다.
+      // 앱은 `const Uuid().v4()` 를 쓰므로 같은 형식을 쓴다.
+      attemptId: const Uuid().v4(),
       itemId: item.id,
       expectedText: item.expectedText,
       rawAnswer: wrongAnswer,
@@ -155,6 +181,43 @@ void main() {
     const repo = DictationRepository();
     expect(repo.attempts(), isNotEmpty, reason: '답안이 디스크에 남아야 한다');
     expect(repo.loadPackage()?.items.single.expectedText, sentence);
+
+    // ── 9. (선택) 실제 서버로 업싱크 ─────────────────────────────────────
+    // 서버 정보를 주면 앱의 업싱크 경로를 **끝까지** 태운다. 안 주면 건너뛴다
+    // (기본 실행이 외부 서버에 의존하지 않도록).
+    //
+    //   flutter test integration_test -d <기기> \
+    //     --dart-define=UPSYNC_URL=http://127.0.0.1:18100 \
+    //     --dart-define=UPSYNC_TOKEN=<교사 JWT> \
+    //     --dart-define=UPSYNC_CLASSROOM=<학급 UUID>
+    //
+    // ⚠️게이트웨이(nginx)는 외부 요청에 Basic 을 요구하고 앱은 그 자격을 못 보낸다.
+    //   그래서 검증은 SSH 터널로 서버에 직결한다:
+    //   `ssh -f -N -L 18100:127.0.0.1:8100 homelab25`
+    if (upsyncUrl.isNotEmpty && upsyncToken.isNotEmpty && upsyncClassroom.isNotEmpty) {
+      await typeVisible(tester, find.byKey(TeacherHomeKeys.serverUrl), upsyncUrl);
+      await typeVisible(tester, find.byKey(TeacherHomeKeys.serverToken), upsyncToken);
+      await typeVisible(tester, find.byKey(TeacherHomeKeys.classroomId), upsyncClassroom);
+      await tapVisible(tester, find.byKey(TeacherHomeKeys.uploadNow));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(seconds: 5)));
+      await tester.pumpAndSettle();
+
+      // 실패했을 때 원인을 바로 알 수 있게 화면 상태를 함께 남긴다.
+      final banners = tester
+          .widgetList<JamminStatusBanner>(find.byType(JamminStatusBanner))
+          .map((b) => b.message)
+          .toList();
+      final uploadBtn = tester
+          .widget<FilledButton>(find.byKey(TeacherHomeKeys.uploadNow));
+      debugPrint('[itest] 업싱크 배너=$banners · 버튼활성=${uploadBtn.onPressed != null}');
+
+      expect(find.textContaining('업로드 완료'), findsOneWidget,
+          reason: '업싱크가 성공해야 한다. 화면 배너=$banners · '
+              '업로드버튼활성=${uploadBtn.onPressed != null}. '
+              '401 이면 토큰, nginx 401 이면 Authorization 헤더를 다시 쓰는지 확인할 것');
+      expect(find.textContaining('신규 1건'), findsOneWidget,
+          reason: '이 세션의 제출 1건이 신규로 집계되어야 한다');
+    }
 
     await tester.runAsync(() => student.close());
   });
