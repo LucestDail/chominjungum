@@ -93,12 +93,25 @@ class HangulWritingWorksheetState extends State<HangulWritingWorksheet> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxW = constraints.maxWidth;
-        final cellW = (maxW / lb).floorToDouble().clamp(60.0, 140.0);
+        // 한 줄에 몇 칸을 넣을지는 **화면 폭이 정한다**.
+        //
+        // 예전에는 프로필의 lineBreakCount(=8)로 고정하고 셀 폭만
+        // `(maxW / 8).clamp(60, 140)` 으로 잡았는데, 좁은 화면에서 `maxW / 8` 이
+        // 60 미만이 되면 clamp 하한이 60으로 끌어올려 **칸수 × 60 > maxW** 가 되어
+        // 오른쪽 칸이 화면 밖으로 잘렸다(iPhone 17 Pro Max 에서 7칸이 32px 초과).
+        // 잘린 칸에는 학생이 답을 쓸 수 없으므로 미관 문제가 아니라 기능 장애다.
+        //
+        // 인쇄용 학습지는 lineBreakCount 를 지켜야 하지만(jammin 준용), 이 위젯은
+        // 화면 응시 전용이라 접는 위치를 화면에 맞추는 것이 맞다.
+        const minCellW = 60.0; // 손가락으로 쓸 수 있는 최소 칸
+        final fits = (maxW / minCellW).floor();
+        final perRow = fits < 1 ? 1 : (fits < lb ? fits : lb);
+        final cellW = (maxW / perRow).floorToDouble().clamp(minCellW, 140.0);
         final profile = widget.baseProfile.scaledToCellWidth(cellW);
         final rows = <Widget>[];
 
-        for (var i = 0; i < _glyphs.length; i += lb) {
-          final end = (i + lb < _glyphs.length) ? i + lb : _glyphs.length;
+        for (var i = 0; i < _glyphs.length; i += perRow) {
+          final end = (i + perRow < _glyphs.length) ? i + perRow : _glyphs.length;
           final slice = _glyphs.sublist(i, end);
 
           rows.add(
@@ -166,7 +179,9 @@ class HangulWritingToolbar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          // 좁은 화면에서 Row 가 넘쳤다(1.4px). 여유를 만들어 **라벨을 살린다** —
+          // 지우기는 되돌릴 수 없는 동작이라 아이콘만 남으면 초등학생이 뜻을 모른다.
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Row(
             children: [
               _ToolButton(
@@ -183,15 +198,26 @@ class HangulWritingToolbar extends StatelessWidget {
                 onTap: () => onToolChanged(HangulWriteTool.eraser),
               ),
               const Spacer(),
-              TextButton.icon(
-                onPressed: hasSelection ? onClearSelected : null,
-                icon: const Icon(Icons.layers_clear, size: 20),
-                label: const Text('이 칸 지우기'),
+              Flexible(
+                child: TextButton.icon(
+                  style: _clearButtonStyle,
+                  onPressed: hasSelection ? onClearSelected : null,
+                  icon: const Icon(Icons.layers_clear, size: 18),
+                  // "이 칸 지우기" 는 4개 버튼과 함께 한 줄에 들어가지 않아
+                  // `이…` 로 잘렸다. 잘린 라벨보다 짧고 온전한 라벨이 낫다 —
+                  // 지우개 옆 문맥과 아이콘이 "지우기"를 지탱한다.
+                  label: const Text('이 칸',
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
               ),
-              TextButton.icon(
-                onPressed: onClearAll,
-                icon: const Icon(Icons.delete_outline, size: 20),
-                label: const Text('전체'),
+              Flexible(
+                child: TextButton.icon(
+                  style: _clearButtonStyle,
+                  onPressed: onClearAll,
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('전체',
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
               ),
             ],
           ),
@@ -200,6 +226,14 @@ class HangulWritingToolbar extends StatelessWidget {
     );
   }
 }
+
+/// 지우기 버튼: 라벨을 살리려고 여백·글자를 조금 줄였다(툴바가 1.4px 넘쳤다).
+final _clearButtonStyle = TextButton.styleFrom(
+  padding: const EdgeInsets.symmetric(horizontal: 8),
+  textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+  visualDensity: VisualDensity.compact,
+  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+);
 
 class _ToolButton extends StatelessWidget {
   const _ToolButton({

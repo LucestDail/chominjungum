@@ -182,6 +182,18 @@ void main() {
     expect(repo.attempts(), isNotEmpty, reason: '답안이 디스크에 남아야 한다');
     expect(repo.loadPackage()?.items.single.expectedText, sentence);
 
+    // ── 8.5 학생이 실제로 보는 받아쓰기 화면까지 들어간다 ────────────────
+    // 이 화면을 방문하지 않아서 **오버플로 3건을 놓쳤다**(칸 32px·앱바·툴바).
+    // 오버플로는 여기서 예외로 잡히므로, 경로를 지나가는 것만으로 방어가 된다.
+    await tapVisible(tester, find.text('이 기기에서 미리보기'));
+    expect(tester.takeException(), isNull, reason: '받아쓰기 화면이 넘치면 안 된다');
+    expect(find.textContaining(sentence), findsWidgets,
+        reason: '출제한 문장이 학생 화면에 보여야 한다');
+    // 뒤로 나와 교사 화면으로 복귀 (다음 단계가 교사 화면을 쓴다)
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
     // ── 9. (선택) 실제 서버로 업싱크 ─────────────────────────────────────
     // 서버 정보를 주면 앱의 업싱크 경로를 **끝까지** 태운다. 안 주면 건너뛴다
     // (기본 실행이 외부 서버에 의존하지 않도록).

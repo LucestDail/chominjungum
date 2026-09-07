@@ -11,19 +11,24 @@ class JamminBrandTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SvgPicture.asset(
-          'assets/images/navbar-logo.svg',
-          height: 36,
-          fit: BoxFit.contain,
-        ),
-        const SizedBox(width: 10),
-        Flexible(
-          child: Text(
+    // 로고는 고정 크기 SVG 라서, 뒤로가기 + 액션 아이콘이 함께 놓이는 화면에서는
+    // 제목 슬롯이 좁아져 오른쪽으로 넘쳤다(받아쓰기 화면 실측). 넘칠 때 통째로
+    // 줄어들게 감싼다 — 로고 비율이 유지되고 글자도 함께 작아진다.
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SvgPicture.asset(
+            'assets/images/navbar-logo.svg',
+            height: 36,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(width: 10),
+          Text(
             subtitle,
-            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
             style: TextStyle(
               fontFamily: JamminTypography.family,
               fontSize: 18,
@@ -32,8 +37,8 @@ class JamminBrandTitle extends StatelessWidget {
               letterSpacing: 0.04,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
