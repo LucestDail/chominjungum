@@ -441,7 +441,8 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
       children: [
         const JamminSectionHeader(
           heading: '서버로 올리기 (선택)',
-          subheading: '수업이 끝난 뒤 결과를 성적부로 보냅니다. 인터넷이 없으면 기기에 보관했다가 나중에 올릴 수 있습니다.',
+          subheading: '수업이 끝난 뒤 결과를 성적부로 보냅니다. 인터넷이 없으면 기기에 보관했다가 나중에 올릴 수 있습니다.\n'
+              '서버 주소는 같은 망의 주소(http://192.168.0.10:8100)도, 외부 주소도 됩니다.',
           center: false,
         ),
         const SizedBox(height: 16),

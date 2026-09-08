@@ -347,7 +347,35 @@ HTTP Basic 을 요구하므로, 같은 헤더에 Bearer 를 실으면 Basic 이 
 2차(같은 배치) `accepted:0 duplicated:1` — 09-05 에 고친 업싱크 멱등성이
 라이브에서 의도대로 동작하는 것도 함께 확인됐다.
 
-### ⚠️ 남은 결정 — 앱은 게이트웨이 Basic 자격을 보낼 수 없다
+### ✅ 해결됨 (2026-09-08) — sync 경로 하나만 게이트 밖으로
+
+**선택지 ②를 택했다**: nginx 에서 `POST /chominjungum/api/sync/sessions` 만
+`location =` 정확 매치로 게이트웨이 Basic 밖에 두고, **서버 JWT 로 지킨다**.
+
+왜 ②인가 — ①(앱에 게이트 자격 필드)은 **앱에 홈랩 전체를 지키는 게이트 비번을 저장**하는
+셈이라 앱 하나가 털리면 게이트가 무의미해진다. ③(현재 유지)은 교실에서 올릴 수 없다.
+②는 노출 범위가 **이 한 경로**이고, 그 경로는 이미 토큰 없이는 401 이다.
+
+적용 후 실측:
+
+| 확인 | 결과 |
+|---|---|
+| sync 무인증 | `401` + `application/json` — **애플리케이션 응답**(`WWW-Authenticate` 없음) |
+| sync + 유효 토큰, **Basic 없이** | `{"accepted":1,…}` — 앱이 하는 그대로 성공 |
+| 다른 API(`/api/classrooms`) | `WWW-Authenticate: Basic` — 게이트 유지 |
+| 정적 페이지 | 401 — 게이트 유지 |
+| `/chominjungum/health` | 200 — 공개 유지 |
+
+안전 근거: 점수는 **서버가 재채점**하고(클라이언트 숫자를 읽지 않는다), 남의 학급은
+소유권 검사로 403, **로그인 엔드포인트는 게이트 뒤에 그대로** 두어 무차별 대입을 막는다
+(+`LoginThrottle` 5회→5분). 선례는 `/haru/`(자체 api-key 로 지키며 게이트 밖).
+백업 = `.25:/etc/nginx/backups/gateway.conf.bak-20260908`, 롤백은 그 블록만 삭제.
+
+⚠️ 백업을 처음에 `sites-enabled/` 에 뒀다가 nginx 가 그것도 로드해 `duplicate upstream`
+으로 문법 검사가 깨졌다. **`sites-enabled/` 안에 백업을 두면 안 된다** —
+기존 관례대로 `/etc/nginx/backups/` 를 쓸 것. reload 전에 발견해 서비스 영향은 없었다.
+
+### (이전 기록) 남은 결정 — 앱은 게이트웨이 Basic 자격을 보낼 수 없다
 
 헤더를 고쳤어도 **외부 도메인으로는 여전히 못 올린다.** 게이트웨이가 Basic 을 요구하는데
 `UpsyncConfig` 에는 `baseUrl`·`token`·`classroomId` 만 있고 Basic 자격을 넣을 자리가 없다.
