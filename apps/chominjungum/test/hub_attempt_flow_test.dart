@@ -35,12 +35,14 @@ void main() {
 
   Future<StudentHubClient> connectStudent({
     void Function(List<int> plain, SyncEnvelope env)? onMessage,
+    void Function()? onDisconnected,
   }) {
     return StudentHubClient.connect(
       wsUrl: 'ws://127.0.0.1:${hub.boundPort}/',
       sessionKey: hub.sessionKey,
       sessionId: sessionId,
       onMessage: onMessage ?? (_, __) {},
+      onDisconnected: onDisconnected,
     );
   }
 
@@ -116,6 +118,31 @@ void main() {
     await student.close();
     await _waitUntil(() => hub.clientCount == 0);
     expect(clientCounts.last, 0);
+  });
+
+  test('★허브가 멈추면 학생이 끊김을 통보받는다', () async {
+    // 그전에는 학생 쪽에 끊김 감지가 아예 없어서, 연결이 죽어도 화면은
+    // "허브에 연결됨" 그대로였고 제출은 조용히 실패했다.
+    var disconnected = 0;
+    await connectStudent(onDisconnected: () => disconnected++);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    expect(disconnected, 0, reason: '아직 붙어 있는데 통보되면 안 된다');
+
+    await hub.stop();
+    for (var i = 0; disconnected == 0 && i < 50; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    expect(disconnected, 1, reason: '끊기면 정확히 한 번 통보돼야 한다');
+  });
+
+  test('학생이 스스로 닫아도 통보는 한 번을 넘지 않는다', () async {
+    var disconnected = 0;
+    final student = await connectStudent(onDisconnected: () => disconnected++);
+    await student.close();
+    for (var i = 0; disconnected == 0 && i < 40; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    expect(disconnected, lessThanOrEqualTo(1));
   });
 }
 

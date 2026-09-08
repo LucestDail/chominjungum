@@ -48,8 +48,19 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
   String? _status;
   JamminStatusTone _statusTone = JamminStatusTone.info;
 
+  /// 마지막으로 성공한 페어링 문자열 — 끊겼을 때 **자동 재연결**에 쓴다.
+  /// (세션 키가 들어 있으므로 화면에 다시 보여주지 않는다)
+  String? _lastPayload;
+  Timer? _reconnectTimer;
+  int _reconnectTries = 0;
+
+  /// 자동 재시도 상한. 교실에서 잠깐 끊긴 것은 대부분 몇 초 안에 붙는다.
+  /// 계속 실패하면 사람이 다시 스캔하는 편이 빠르다(그 안내를 띄운다).
+  static const _maxReconnectTries = 5;
+
   @override
   void dispose() {
+    _reconnectTimer?.cancel();
     _studentName.dispose();
     _paste.dispose();
     final c = _client;
@@ -63,6 +74,36 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
     setState(() {
       _status = msg;
       _statusTone = tone;
+    });
+  }
+
+  /// 허브와 끊어졌을 때. **화면에 알리고** 몇 번 자동으로 다시 붙어 본다.
+  ///
+  /// 그전에는 끊겨도 "허브에 연결됨"이 그대로 남아 있었고, 제출을 눌러도
+  /// 조용히 실패했다 — 교실에서 앱을 잠깐 다른 데로 돌리면 생기는 일이다.
+  void _onDisconnected() {
+    if (!mounted) return;
+    _client = null;
+    ref.read(studentHubClientProvider.notifier).state = null;
+
+    final payload = _lastPayload;
+    if (payload == null || _reconnectTries >= _maxReconnectTries) {
+      _setStatus(
+        '선생님 기기와 연결이 끊어졌습니다. QR을 다시 스캔해 주세요.',
+        tone: JamminStatusTone.error,
+      );
+      return;
+    }
+
+    _reconnectTries++;
+    _setStatus(
+      '연결이 끊어져 다시 연결하는 중… ($_reconnectTries/$_maxReconnectTries)',
+      tone: JamminStatusTone.info,
+    );
+    // 붙자마자 또 끊기는 상황에서 몰아치지 않게 간격을 늘린다.
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(Duration(seconds: _reconnectTries * 2), () {
+      if (mounted) unawaited(_connectFromPayloadString(payload));
     });
   }
 
@@ -86,6 +127,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
         wsUrl: 'ws://$host:${payload.hubPort}/',
         sessionKey: key,
         sessionId: payload.sessionId,
+        onDisconnected: _onDisconnected,
         onMessage: (plain, env) {
           final pkg = tryDecodeDictationPackage(plain, env);
           if (pkg != null && mounted) {
@@ -98,6 +140,8 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
         },
       );
       ref.read(studentHubClientProvider.notifier).state = _client;
+      _lastPayload = raw.trim();
+      _reconnectTries = 0;
       if (mounted) {
         _setStatus('허브에 연결됨. 교사가 문제를 내면 자동으로 열립니다.', tone: JamminStatusTone.success);
       }

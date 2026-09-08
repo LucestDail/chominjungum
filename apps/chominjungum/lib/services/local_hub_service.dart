@@ -121,23 +121,41 @@ class StudentHubClient {
   final SecretKey _sessionKey;
   final String sessionId;
 
+  /// [onDisconnected] — 허브와의 연결이 **끊어졌을 때** 한 번 불린다.
+  ///
+  /// ⚠️이게 없던 동안에는 끊겨도 학생 화면이 "허브에 연결됨" 그대로였고,
+  /// 제출을 눌러도 **조용히 실패**했다. 교실에서 앱을 잠깐 다른 데로 돌리거나
+  /// 화면이 꺼지면 소켓이 끊기므로 드문 일이 아니다.
   static Future<StudentHubClient> connect({
     required String wsUrl,
     required SecretKey sessionKey,
     required String sessionId,
     required void Function(List<int> plain, SyncEnvelope env) onMessage,
+    void Function()? onDisconnected,
   }) async {
     final channel = WebSocketChannel.connect(Uri.parse(wsUrl));
     await channel.ready;
-    final sub = channel.stream.listen((message) async {
-      if (message is! String) return;
-      try {
-        final env = SyncEnvelope.decode(message);
-        if (env.sessionId != sessionId) return;
-        final plain = await SyncCrypto.open(sessionKey: sessionKey, envelope: env);
-        onMessage(plain, env);
-      } catch (_) {}
-    });
+    var notified = false;
+    void notifyOnce() {
+      if (notified) return;
+      notified = true;
+      onDisconnected?.call();
+    }
+
+    final sub = channel.stream.listen(
+      (message) async {
+        if (message is! String) return;
+        try {
+          final env = SyncEnvelope.decode(message);
+          if (env.sessionId != sessionId) return;
+          final plain = await SyncCrypto.open(sessionKey: sessionKey, envelope: env);
+          onMessage(plain, env);
+        } catch (_) {}
+      },
+      onDone: notifyOnce,
+      onError: (_) => notifyOnce(),
+      cancelOnError: false,
+    );
     return StudentHubClient._(channel, sub, sessionKey, sessionId);
   }
 
