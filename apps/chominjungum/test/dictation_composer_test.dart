@@ -88,6 +88,73 @@ void main() {
     });
   });
 
+  group('여러 문항을 한 번에 — 한 줄이 한 문항', () {
+    test('줄 수만큼 문항이 나온다', () {
+      final items = DictationComposer.composeAll('안녕하세요\n학교에 갔다.\n꽃이 피었습니다');
+      expect(items, hasLength(3));
+      expect(items.map((i) => i.expectedText),
+          ['안녕하세요', '학교에 갔다.', '꽃이 피었습니다']);
+    });
+
+    test('빈 줄과 앞뒤 공백은 무시한다 — 붙여넣기가 흔하다', () {
+      final items = DictationComposer.composeAll('\n  안녕하세요  \n\n\n학교에 갔다.\n  \n');
+      expect(items, hasLength(2));
+      expect(items.first.expectedText, '안녕하세요');
+    });
+
+    test('한 줄만 있어도 된다', () {
+      expect(DictationComposer.composeAll('안녕하세요'), hasLength(1));
+    });
+
+    test('전부 비면 거부한다', () {
+      expect(() => DictationComposer.composeAll('  \n\n '), throwsFormatException);
+    });
+
+    test('★잘못된 줄은 몇 번째인지 알려준다', () {
+      // 10줄을 붙여넣었는데 "출제 실패"만 뜨면 어디를 고칠지 알 수 없다.
+      try {
+        DictationComposer.composeAll('안녕하세요\n학교에 갔다.\nhello\n꽃이 피었습니다');
+        fail('거부되어야 한다');
+      } on FormatException catch (e) {
+        expect(e.message, contains('3번 문장'));
+      }
+    });
+
+    test('jammin 제약 — 한 문장 16글자', () {
+      final ok = '가' * DictationComposer.maxGlyphsPerItem;
+      expect(() => DictationComposer.composeAll(ok), returnsNormally);
+      expect(DictationComposer.isComposable('가' * 17), isFalse);
+      try {
+        DictationComposer.composeAll('안녕하세요\n${'가' * 17}');
+        fail('거부되어야 한다');
+      } on FormatException catch (e) {
+        expect(e.message, contains('2번 문장'));
+        expect(e.message, contains('16글자'));
+      }
+    });
+
+    test('jammin 제약 — 학습지 전체 20줄', () {
+      // 8글자 = 1줄. 20줄 = 8글자 문장 20개까지.
+      final twenty = List.filled(20, '가' * 8).join('\n');
+      expect(DictationComposer.composeAll(twenty), hasLength(20));
+      final twentyOne = List.filled(21, '가' * 8).join('\n');
+      try {
+        DictationComposer.composeAll(twentyOne);
+        fail('거부되어야 한다');
+      } on FormatException catch (e) {
+        expect(e.message, contains('20줄'));
+      }
+    });
+
+    test('rowsFor — 8칸이 한 줄', () {
+      expect(DictationComposer.rowsFor(''), 0);
+      expect(DictationComposer.rowsFor('가'), 1);
+      expect(DictationComposer.rowsFor('가' * 8), 1);
+      expect(DictationComposer.rowsFor('가' * 9), 2);
+      expect(DictationComposer.rowsFor('가' * 16), 2);
+    });
+  });
+
   group('오프라인 출제 전제 가드', () {
     test('교사 화면이 원격 분해 서비스를 쓰지 않는다', () {
       final src = File('lib/features/teacher/teacher_home_screen.dart');

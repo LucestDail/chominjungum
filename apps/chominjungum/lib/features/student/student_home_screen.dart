@@ -10,6 +10,7 @@ import 'package:sync_protocol/sync_protocol.dart';
 
 import '../../providers/dictation_providers.dart';
 import '../../services/local_hub_service.dart';
+import '../../services/student_profile.dart';
 import '../../theme/jammin_tokens.dart';
 import '../../widgets/jammin/jammin_brand_title.dart';
 import '../../widgets/jammin/jammin_scaffold.dart';
@@ -17,6 +18,13 @@ import '../../widgets/jammin/jammin_section.dart';
 import '../../widgets/jammin/jammin_status_banner.dart';
 
 /// 학생: QR 스캔 또는 페이로드 붙여넣기로 허브 연결.
+/// 통합 테스트·위젯 테스트가 학생 화면 요소를 찾는 손잡이.
+class StudentHomeKeys {
+  const StudentHomeKeys._();
+
+  static const studentName = Key('student.name');
+}
+
 class StudentHomeScreen extends ConsumerStatefulWidget {
   const StudentHomeScreen({super.key});
 
@@ -25,6 +33,16 @@ class StudentHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
+  final _studentName = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    StudentProfile.load().then((v) {
+      if (mounted && v != null) _studentName.text = v;
+    });
+  }
+
   final _paste = TextEditingController();
   StudentHubClient? _client;
   String? _status;
@@ -32,6 +50,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
 
   @override
   void dispose() {
+    _studentName.dispose();
     _paste.dispose();
     final c = _client;
     if (c != null) {
@@ -109,7 +128,22 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
             heading: '학생 연결',
             subheading: '교사 QR을 스캔하거나 페이로드를 붙여넣으세요.',
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 24),
+          // 이름을 적으면 선생님 화면에 이름으로 보인다. 비워 두면 기기 번호로 보인다.
+          TextField(
+            key: StudentHomeKeys.studentName,
+            controller: _studentName,
+            maxLength: StudentProfile.maxLength,
+            textInputAction: TextInputAction.done,
+            onChanged: (v) => unawaited(StudentProfile.save(v)),
+            decoration: const InputDecoration(
+              labelText: '내 이름 (선택)',
+              helperText: '적으면 선생님 화면에 이름으로 보입니다. 비워 두면 기기 번호로 보입니다.',
+              helperMaxLines: 2,
+              counterText: '',
+            ),
+          ),
+          const SizedBox(height: 20),
           Card(
             clipBehavior: Clip.antiAlias,
             child: Column(

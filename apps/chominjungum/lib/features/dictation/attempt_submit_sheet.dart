@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/dictation_models.dart';
 import '../../providers/dictation_providers.dart';
+import '../../services/student_profile.dart';
 import 'glyph_result_chip.dart';
 import '../../theme/jammin_tokens.dart';
 import '../../widgets/jammin/jammin_status_banner.dart';
@@ -42,6 +43,23 @@ class _AttemptSubmitSheetState extends ConsumerState<AttemptSubmitSheet> {
   /// 문항별 답안 id. 채점할 때 만들어 **로컬 이력과 교사 제출이 같은 id 를 쓰게** 한다
   /// (서버 업싱크가 `attemptId` 로 멱등하므로, 재전송해도 중복이 생기지 않는다).
   final _attemptIds = <int, String>{};
+
+  /// 교사 화면이 "학생 a3f2…" 대신 이름으로 보이게 한다(선택 — 비면 종전대로).
+  ///
+  /// ⚠️**제출 시점에 읽지 않고 미리 읽어 둔다.** 처음엔 `_submit` 안에서
+  /// `await StudentProfile.load()` 를 했는데, 그러면 **제출 경로에 플랫폼 채널 I/O가
+  /// 끼어든다** — e2e 테스트가 그 대기에서 멈춰 제출이 아예 나가지 않았다.
+  /// 이름 하나 때문에 제출이 느려지거나 막히면 안 된다.
+  String? _studentName;
+
+  @override
+  void initState() {
+    super.initState();
+    // 실패해도 무시된다(StudentProfile.load 가 null 을 준다) — 이름은 선택이다.
+    StudentProfile.load().then((v) {
+      if (mounted) setState(() => _studentName = v);
+    });
+  }
   String? _status;
   JamminStatusTone _statusTone = JamminStatusTone.info;
 
@@ -125,6 +143,7 @@ class _AttemptSubmitSheetState extends ConsumerState<AttemptSubmitSheet> {
       expectedText: item.expectedText,
       rawAnswer: _controllerFor(index).text.trim(),
       deviceBindingId: deviceId,
+      studentName: _studentName,
       correctCount: result.correctCount,
       totalCount: result.totalCount,
       submittedAtMs: DateTime.now().millisecondsSinceEpoch,

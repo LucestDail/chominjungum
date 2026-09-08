@@ -312,19 +312,24 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
     if (text.isEmpty) return;
     try {
       // 분해는 기기에서 한다 — 교실에 인터넷이 없어도 출제되어야 한다. DictationComposer 주석 참조.
-      final item = DictationComposer.compose(text);
-      final pkg = DictationPackage(version: DictationPackage.currentVersion, items: [item]);
+      // 한 줄이 한 문항이다 — 받아쓰기 수업은 보통 열 문항쯤을 한 번에 낸다.
+      final items = DictationComposer.composeAll(text);
+      final pkg = DictationPackage(version: DictationPackage.currentVersion, items: items);
       ref.read(dictationPackageProvider.notifier).state = pkg;
-      _pending?.addItem(item);
+      for (final item in items) {
+        _pending?.addItem(item);
+      }
       unawaited(_persistQueue());
-      unawaited(_recordBroadcast(item));
+      for (final item in items) {
+        unawaited(_recordBroadcast(item));
+      }
       await hub.broadcastEncrypted(
         type: SyncMessageTypes.dictationPackage,
         plainBytes: pkg.toUtf8Bytes(),
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('학생 기기로 암호화 전송했습니다.')),
+          SnackBar(content: Text('${items.length}문항을 학생 기기로 암호화 전송했습니다.')),
         );
       }
     } catch (e) {
@@ -395,15 +400,24 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
           const SizedBox(height: 24),
           const JamminSectionHeader(
             heading: '받아쓰기 출제',
-            subheading: '정답 문장을 입력하고 학생 기기로 전송합니다.',
+            subheading: '한 줄에 한 문항씩 적고 학생 기기로 전송합니다. '
+                '문장 목록을 그대로 붙여넣어도 됩니다.',
             center: false,
           ),
           const SizedBox(height: 16),
           TextField(
             key: TeacherHomeKeys.sentence,
             controller: _sentence,
-            decoration: const InputDecoration(
-              labelText: '받아쓰기 정답 문장',
+            // 받아쓰기는 보통 열 문항쯤을 한 번에 낸다 — 한 줄 = 한 문항.
+            maxLines: null,
+            minLines: 4,
+            keyboardType: TextInputType.multiline,
+            textInputAction: TextInputAction.newline,
+            decoration: InputDecoration(
+              labelText: '받아쓰기 정답 문장 (한 줄에 하나)',
+              helperMaxLines: 2,
+              helperText: '한 문장 ${DictationComposer.maxGlyphsPerItem}글자까지 · '
+                  '학습지 전체 ${DictationComposer.maxTotalRows}줄까지',
             ),
           ),
           const SizedBox(height: 12),
