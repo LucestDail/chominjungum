@@ -1,4 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 598.28 713.95">
-  <line x1="56.1" y1="395.18" x2="586.82" y2="395.18" fill="none" stroke="#231F20" stroke-dasharray="0 0 0 0 0 0 9.92 9.92 9.92 9.92 9.92 9.92" />
-</svg>
+<!-- 생성물 — 직접 고치지 말 것. tool/build_hangul_assets.py 로 만든다.
+     원본: jammin/src/main/resources/static/hangul/44.svg (viewBox 598.28x713.95)
+     좌표는 원본 그대로이고 전체 상자 623.6 좌표계로 옮기기만 했다. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 623.6 623.6"><g transform="scale(1.042321)"><line xmlns="http://www.w3.org/2000/svg" x1="1.5" y1="596.78" x2="1.5" y2="1.5" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width="3px" />
+  <line xmlns="http://www.w3.org/2000/svg" x1="596.78" y1="596.78" x2="596.78" y2="1.5" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width="3px" />
+  <line xmlns="http://www.w3.org/2000/svg" x1="1.5" y1="1.5" x2="596.78" y2="1.5" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width="3px" />
+  <line xmlns="http://www.w3.org/2000/svg" x1="1.5" y1="596.78" x2="596.78" y2="596.78" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width="3px" />
+  <g xmlns="http://www.w3.org/2000/svg">
+    <line x1="1.5" y1="395.18" x2="6.5" y2="395.18" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width="3px" />
+    <line x1="16.42" y1="395.18" x2="51.14" y2="395.18" stroke-dasharray="0 0 0 0 9.92 9.92 9.92 9.92" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width="3px" />
+    <line x1="56.1" y1="395.18" x2="586.82" y2="395.18" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width="3px" stroke-dasharray="0 0 0 0 0 0 9.92 9.92 9.92 9.92 9.92 9.92" />
+    <line x1="591.78" y1="395.18" x2="596.78" y2="395.18" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width="3px" />
+  </g>
+  <g xmlns="http://www.w3.org/2000/svg">
+    <line x1="1.5" y1="199.93" x2="6.5" y2="199.93" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width="3px" />
+    <line x1="15.94" y1="199.93" x2="48.96" y2="199.93" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width="3px" stroke-dasharray="0 0 0 0 9.44 9.44 9.44 9.44" />
+    <line x1="53.68" y1="199.93" x2="388.63" y2="199.93" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width="3px" stroke-dasharray="0 0 0 0 0 0 9.44 9.44 9.44 9.44 9.44 9.44" />
+    <line x1="393.35" y1="199.93" x2="398.35" y2="199.93" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width="3px" />
+  </g>
+  <g xmlns="http://www.w3.org/2000/svg">
+    <line x1="398.35" y1="199.93" x2="398.35" y2="194.93" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width="3px" />
+    <line x1="398.35" y1="183.84" x2="398.35" y2="145.05" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width="3px" stroke-dasharray="0 0 0 0 11.08 11.08 11.08 11.08" />
+    <line x1="398.35" y1="139.51" x2="398.35" y2="12.04" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width="3px" stroke-dasharray="0 0 0 0 0 0 11.08 11.08 11.08 11.08 11.08 11.08" />
+    <line x1="398.35" y1="6.5" x2="398.35" y2="1.5" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width="3px" />
+  </g>
+  <text xmlns="http://www.w3.org/2000/svg" transform="translate(25.33 559.43) scale(1.27 1)" fill="#231f20" font-family="KCCDodamdodamR" font-size="515.06"><tspan x="0" y="0">,</tspan></text>
+</g></svg>

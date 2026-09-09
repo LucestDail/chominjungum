@@ -1,5 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 598.28 598.28">
-  <line id="_" data-name="ㅎ" x1="229.14" y1="560.33" x2="369.14" y2="560.33" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <line id="_-2" data-name="ㅎ" x1="229.14" y1="560.33" x2="229.14" y2="420.33" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-</svg>
+<!-- 생성물 — 직접 고치지 말 것. tool/build_hangul_assets.py 로 만든다.
+     원본: jammin/src/main/resources/static/hangul/4523.svg (viewBox 623.6x221.1)
+     좌표는 원본 그대로이고 전체 상자 623.6 좌표계로 옮기기만 했다. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 623.6 623.6"><g transform="translate(0 402.5)"><line xmlns="http://www.w3.org/2000/svg" x1="14.2" y1="209.8" x2="609.4" y2="209.8" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+<g xmlns="http://www.w3.org/2000/svg">
+	<g>
+		<line x1="14.2" y1="10.7" x2="19.2" y2="10.7" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+		<line x1="29.1" y1="10.7" x2="63.8" y2="10.7" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" stroke-dasharray="9.9199,9.9199,9.9199,9.9199" />
+		<line x1="68.8" y1="10.7" x2="599.5" y2="10.7" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" stroke-dasharray="9.9199,9.9199,9.9199,9.9199,9.9199,9.9199" />
+		<line x1="604.4" y1="10.7" x2="609.4" y2="10.7" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+	</g>
+</g>
+<line xmlns="http://www.w3.org/2000/svg" x1="14.5" y1="0.5" x2="14.6" y2="211.5" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+<line xmlns="http://www.w3.org/2000/svg" x1="609.6" y1="211" x2="609.5" y2="0" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+<g xmlns="http://www.w3.org/2000/svg" id="_x3134_">
+	<line id="_x3139__00000071555613146022014170000015797347702650758799_" x1="243.1" y1="179.1" x2="243.1" y2="41.7" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+	
+		<line id="_x3139__00000062192558353490062280000009987698426026024124_" x1="243.1" y1="179.4" x2="380.5" y2="179.4" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+</g>
+</g></svg>

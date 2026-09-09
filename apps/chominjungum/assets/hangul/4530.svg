@@ -1,12 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 598.28 598.28">
-  <line id="_" data-name="ㄹ" x1="163.46" y1="564.39" x2="163.46" y2="507.7" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <line id="_-2" data-name="ㄲ" x1="251.38" y1="564.82" x2="163.33" y2="564.82" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <line id="_-3" data-name="ㄲ" x1="374.35" y1="569.91" x2="374.35" y2="442.35" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <line id="_-4" data-name="ㄲ" x1="251.38" y1="439.33" x2="163.33" y2="439.33" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <line id="_-5" data-name="ㄲ" x1="251.38" y1="501.52" x2="163.33" y2="501.52" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <line id="_-6" data-name="ㄹ" x1="251.33" y1="501.86" x2="251.33" y2="445.17" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <line id="_-7" data-name="ㄲ" x1="374.35" y1="490.33" x2="286.3" y2="490.33" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <line id="_-8" data-name="ㄲ" x1="374.35" y1="569.91" x2="286.3" y2="569.91" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <line id="_-9" data-name="ㄲ" x1="286.3" y1="566.64" x2="286.3" y2="439.08" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-</svg>
+<!-- 생성물 — 직접 고치지 말 것. tool/build_hangul_assets.py 로 만든다.
+     원본: jammin/src/main/resources/static/hangul/4530.svg (viewBox 623.6x221.1)
+     좌표는 원본 그대로이고 전체 상자 623.6 좌표계로 옮기기만 했다. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 623.6 623.6"><g transform="translate(0 402.5)"><line xmlns="http://www.w3.org/2000/svg" x1="14.2" y1="209.8" x2="609.4" y2="209.8" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+<g xmlns="http://www.w3.org/2000/svg">
+	<g>
+		<line x1="14.2" y1="10.7" x2="19.2" y2="10.7" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+		<line x1="29.1" y1="10.7" x2="63.8" y2="10.7" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" stroke-dasharray="9.9199,9.9199,9.9199,9.9199" />
+		<line x1="68.8" y1="10.7" x2="599.5" y2="10.7" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" stroke-dasharray="9.9199,9.9199,9.9199,9.9199,9.9199,9.9199" />
+		<line x1="604.4" y1="10.7" x2="609.4" y2="10.7" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+	</g>
+</g>
+<line xmlns="http://www.w3.org/2000/svg" x1="14.5" y1="0.5" x2="14.6" y2="211.5" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+<line xmlns="http://www.w3.org/2000/svg" x1="609.6" y1="211" x2="609.5" y2="0" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+<g xmlns="http://www.w3.org/2000/svg" id="_x313C_">
+	<g id="_x3142__00000170961750714643482050000003994426465969478809_">
+		<g id="_x3137__00000008846556649984415310000002417200314443376026_">
+			<g id="_x3134__00000057142188758566428570000011679895420424679321_">
+				
+					<line id="_x3139__00000150096758671254110210000000518409742404355998_" x1="327.5" y1="177.6" x2="327.5" y2="41.5" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+				
+					<line id="_x3139__00000044146071032916197960000011585117650257671823_" x1="327.6" y1="179.6" x2="464.9" y2="179.6" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+			</g>
+			
+				<line id="_x3139__00000021816525925258846380000006566870175376197295_" x1="327.1" y1="110.6" x2="464.5" y2="110.6" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+		</g>
+		
+			<line id="_x3139__00000048482015009110452130000017653681597934946976_" x1="465.5" y1="179.6" x2="465.5" y2="43.5" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+	</g>
+	<g id="_x3139__00000038392072046911938120000009003349365365471653_">
+		<g id="_x3137__00000012454265171699698870000009762486875874039201_">
+			<g id="_x3134__00000103982766044093564830000009690169317498904213_">
+				
+					<line id="_x3139__00000103250763410001836860000005761862036898403237_" x1="296.6" y1="110.4" x2="296.6" y2="42.4" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+				
+					<line id="_x3139__00000142862615833764738280000001356606737590549652_" x1="158.6" y1="179.4" x2="295.9" y2="179.4" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+			</g>
+			
+				<line id="_x3139__00000023247431409759088140000006006966290907926145_" x1="159.1" y1="41.7" x2="296.5" y2="41.7" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+		</g>
+		
+			<line id="_x3139__00000055673521016209433930000006182018752643033250_" x1="158.8" y1="110.5" x2="296.2" y2="110.5" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+		<line id="_x3139__00000145018161284314814420000006546047965964858557_" x1="158.1" y1="179" x2="158.1" y2="111" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+	</g>
+</g>
+</g></svg>

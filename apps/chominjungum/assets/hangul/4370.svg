@@ -1,9 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 598.28 598.28">
-  <path id="_0" data-name="0" d="m137.62,130.4c0,29,29.14,52.47,65.15,52.47" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <path id="_0-2" data-name="0" d="m202.77,183.2c32.33,0,58.49-26.14,58.49-58.45" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <path id="_0-3" data-name="0" d="m261.25,127.2c0-29-29.14-52.47-65.15-52.47" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <path id="_0-4" data-name="0" d="m196.1,74.74c-32.33,0-58.49,26.14-58.49,58.45" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <line id="_" data-name="ㅎ" x1="121.42" y1="52.1" x2="269.33" y2="52.1" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <line id="_-2" data-name="ㅎ" x1="198.37" y1="50.98" x2="198.37" y2="16.96" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
+<!-- 생성물 — 직접 고치지 말 것. tool/build_hangul_assets.py 로 만든다.
+     원본: jammin/src/main/resources/static/hangul/4370.svg (viewBox 419.5x218.3)
+     좌표는 원본 그대로이고 전체 상자 623.6 좌표계로 옮기기만 했다. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 623.6 623.6"><line xmlns="http://www.w3.org/2000/svg" x1="14.5" y1="12.7" x2="14.2" y2="218.2" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+<line xmlns="http://www.w3.org/2000/svg" x1="14" y1="14.2" x2="419.4" y2="14.2" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+<g xmlns="http://www.w3.org/2000/svg">
+	<g>
+		<line x1="18.2" y1="212.6" x2="23.2" y2="212.6" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+		<line x1="32.6" y1="212.6" x2="65.6" y2="212.6" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" stroke-dasharray="9.4354,9.4354,9.4354,9.4354" />
+		<line x1="70.4" y1="212.6" x2="405.3" y2="212.6" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" stroke-dasharray="9.4354,9.4354,9.4354,9.4354,9.4354,9.4354" />
+		<line x1="410" y1="212.6" x2="415" y2="212.6" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+	</g>
+</g>
+<g xmlns="http://www.w3.org/2000/svg">
+	<g>
+		<line x1="413.9" y1="212.9" x2="413.9" y2="207.9" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+		<line x1="413.9" y1="196.8" x2="413.9" y2="158" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" stroke-dasharray="11.0838,11.0838,11.0838,11.0838" />
+		<line x1="413.9" y1="152.5" x2="413.9" y2="25" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" stroke-dasharray="11.0838,11.0838,11.0838,11.0838,11.0838,11.0838" />
+		<line x1="413.9" y1="19.5" x2="413.9" y2="14.5" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+	</g>
+</g>
+<g xmlns="http://www.w3.org/2000/svg" id="_x314E__00000183207740004092161020000001526169812929141901_">
+	<g>
+		<path id="_x30__00000043442123809795860830000008352551896527314613_" d="M158.7,144c0,29,24.8,52.5,55.5,52.5" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+		<path id="_x30__00000135662875156558081030000014678780669448236978_" d="M214.2,196.8c27.5,0,49.8-26.1,49.8-58.4" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+		<path id="_x30__00000001663040414063862690000015209037803964803983_" d="M264,140.8c0-29-24.8-52.5-55.5-52.5" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+		<path id="_x30__00000031194958944769405670000000543374690865503659_" d="M208.5,88.3c-27.5,0-49.8,26.1-49.8,58.4" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+	</g>
+	<line id="_x314E__00000067224267040139801260000003941610929237282702_" x1="148.3" y1="65.7" x2="274.3" y2="65.7" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+	<line id="_x314E_" x1="211.3" y1="64.6" x2="211.3" y2="30.6" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+</g>
 </svg>

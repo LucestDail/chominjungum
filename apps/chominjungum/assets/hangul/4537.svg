@@ -1,9 +1,38 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 598.28 598.28">
-  <line id="_" data-name="ㄹ" x1="251.38" y1="564.82" x2="251.38" y2="427.45" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <line id="_-2" data-name="ㅆ" x1="277.6" y1="571.05" x2="345.16" y2="432.67" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <line id="_-3" data-name="ㅆ" x1="334.91" y1="470.54" x2="377.75" y2="569" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <line id="_-4" data-name="ㄲ" x1="251.38" y1="564.82" x2="163.33" y2="564.82" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <line id="_-5" data-name="ㄲ" x1="251.38" y1="501.52" x2="163.33" y2="501.52" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-  <line id="_-6" data-name="ㄹ" x1="163.33" y1="563.51" x2="163.33" y2="426.14" fill="none" stroke="#231F20" stroke-linecap="round" stroke-width="20" />
-</svg>
+<!-- 생성물 — 직접 고치지 말 것. tool/build_hangul_assets.py 로 만든다.
+     원본: jammin/src/main/resources/static/hangul/4537.svg (viewBox 623.6x221.1)
+     좌표는 원본 그대로이고 전체 상자 623.6 좌표계로 옮기기만 했다. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 623.6 623.6"><g transform="translate(0 402.5)"><line xmlns="http://www.w3.org/2000/svg" x1="14.2" y1="209.8" x2="609.4" y2="209.8" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+<g xmlns="http://www.w3.org/2000/svg">
+	<g>
+		<line x1="14.2" y1="10.7" x2="19.2" y2="10.7" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+		<line x1="29.1" y1="10.7" x2="63.8" y2="10.7" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" stroke-dasharray="9.9199,9.9199,9.9199,9.9199" />
+		<line x1="68.8" y1="10.7" x2="599.5" y2="10.7" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" stroke-dasharray="9.9199,9.9199,9.9199,9.9199,9.9199,9.9199" />
+		<line x1="604.4" y1="10.7" x2="609.4" y2="10.7" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+	</g>
+</g>
+<line xmlns="http://www.w3.org/2000/svg" x1="14.5" y1="0.5" x2="14.6" y2="211.5" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+<line xmlns="http://www.w3.org/2000/svg" x1="609.6" y1="211" x2="609.5" y2="0" fill="none" stroke="#231F20" stroke-width="3" stroke-miterlimit="10" />
+<g xmlns="http://www.w3.org/2000/svg">
+	<g id="_x3142__00000036960205543986517070000014168494822300504465_">
+		<g id="_x3137__00000107590863569729638250000007523156656721422003_">
+			<g id="_x3134__00000003817695138411700300000002714265607526734012_">
+				
+					<line id="_x3139__00000111881894010985108080000015338256437673551019_" x1="161.3" y1="177.3" x2="161.3" y2="41.2" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+				
+					<line id="_x3139__00000079454778313991225000000016636948498256272528_" x1="161.3" y1="179.2" x2="298.7" y2="179.2" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+			</g>
+			
+				<line id="_x3139__00000137126049275757239260000014266707894655516321_" x1="160.9" y1="110.2" x2="298.3" y2="110.2" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+		</g>
+		
+			<line id="_x3139__00000000217135745807380810000002610808056889873805_" x1="299.3" y1="179.2" x2="299.3" y2="43.2" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+	</g>
+	<g id="합성전용_x3145__00000034797996459622999310000005990885673835977113_">
+		
+			<line id="_x3145__00000103970882681766414510000004126613783608239759_" x1="323.3" y1="179.9" x2="417.3" y2="41.5" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+		
+			<line id="_x3145__00000116931691919654062150000005066671265204005556_" x1="403.1" y1="79.4" x2="462.7" y2="177.8" fill="none" stroke="#231F20" stroke-width="20" stroke-linecap="round" stroke-miterlimit="10" />
+	</g>
+</g>
+</g></svg>

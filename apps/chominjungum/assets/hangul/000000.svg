@@ -1,4 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 623.62 623.62">
-  
+<!-- 생성물 — 직접 고치지 말 것. tool/build_hangul_assets.py 로 만든다.
+     원본: jammin/src/main/resources/static/hangul/000000.svg (viewBox 623.62x623.62)
+     좌표는 원본 그대로이고 전체 상자 623.6 좌표계로 옮기기만 했다. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 623.6 623.6"><line xmlns="http://www.w3.org/2000/svg" x1="14.17" y1="609.45" x2="14.17" y2="14.17" fill="none" stroke="#000000" stroke-width="3" stroke-miterlimit="10" />
+<line xmlns="http://www.w3.org/2000/svg" x1="609.45" y1="609.45" x2="609.45" y2="14.17" fill="none" stroke="#000000" stroke-width="3" stroke-miterlimit="10" />
+<line xmlns="http://www.w3.org/2000/svg" x1="14.17" y1="14.17" x2="609.45" y2="14.17" fill="none" stroke="#000000" stroke-width="3" stroke-miterlimit="10" />
+<line xmlns="http://www.w3.org/2000/svg" x1="14.17" y1="609.45" x2="609.45" y2="609.45" fill="none" stroke="#000000" stroke-width="3" stroke-miterlimit="10" />
+<g xmlns="http://www.w3.org/2000/svg">
+	<g>
+		<line x1="14.17" y1="311.81" x2="19.17" y2="311.81" fill="none" stroke="#6D6E71" stroke-width="3" stroke-miterlimit="10" />
+		<line x1="29.09" y1="311.81" x2="63.81" y2="311.81" fill="none" stroke="#6D6E71" stroke-width="3" stroke-miterlimit="10" stroke-dasharray="9.9199,9.9199,9.9199,9.9199" />
+		<line x1="68.77" y1="311.81" x2="599.49" y2="311.81" fill="none" stroke="#6D6E71" stroke-width="3" stroke-miterlimit="10" stroke-dasharray="9.9199,9.9199,9.9199,9.9199,9.9199,9.9199" />
+		<line x1="604.45" y1="311.81" x2="609.45" y2="311.81" fill="none" stroke="#6D6E71" stroke-width="3" stroke-miterlimit="10" />
+	</g>
+</g>
+<g xmlns="http://www.w3.org/2000/svg">
+	<g>
+		<line x1="311.81" y1="609.45" x2="311.81" y2="604.45" fill="none" stroke="#6D6E71" stroke-width="3" stroke-miterlimit="10" />
+		<line x1="311.81" y1="594.53" x2="311.81" y2="559.81" fill="none" stroke="#6D6E71" stroke-width="3" stroke-miterlimit="10" stroke-dasharray="9.9199,9.9199,9.9199,9.9199" />
+		<line x1="311.81" y1="554.85" x2="311.81" y2="24.13" fill="none" stroke="#6D6E71" stroke-width="3" stroke-miterlimit="10" stroke-dasharray="9.9199,9.9199,9.9199,9.9199,9.9199,9.9199" />
+		<line x1="311.81" y1="19.17" x2="311.81" y2="14.17" fill="none" stroke="#6D6E71" stroke-width="3" stroke-miterlimit="10" />
+	</g>
+</g>
 </svg>
