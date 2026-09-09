@@ -175,10 +175,14 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
     await _hub?.stop();
     final sessionId = const Uuid().v4();
     final key = await SyncCrypto.newSessionKey();
+    // 페어링 v2 — QR 에는 이 키 쌍의 **공개키만** 담는다. 수업 세션 키는 접속한
+    // 학생에게 그 학생만 풀 수 있게 감싸 전달한다(B2).
+    final hostPair = await SyncKeyExchange.newKeyPair();
     final hub = LocalHubService(
       sessionId: sessionId,
       sessionKey: key,
       port: SyncDefaults.hubPort,
+      hostKeyPair: hostPair,
       onAttempt: _onAttempt,
       onClientCountChanged: (count) {
         if (mounted) setState(() => _connectedCount = count);
@@ -198,11 +202,11 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
         _error = 'IP를 확인할 수 없습니다. 아래에 수동으로 입력하세요.';
       });
     }
-    final keyBytes = await SyncCrypto.sessionKeyBytes(key);
     final payload = SessionPairingPayload(
       sessionId: sessionId,
       hostDisplayName: '교사',
-      publicKeyB64: base64Encode(keyBytes),
+      // ★대칭키가 아니라 **공개키**다(v2). QR 을 촬영당해도 세션을 열 수 없다.
+      publicKeyB64: await SyncKeyExchange.publicKeyB64(hostPair),
       createdAtMs: DateTime.now().millisecondsSinceEpoch,
       ttlSeconds: 600,
       hubPort: SyncDefaults.hubPort,

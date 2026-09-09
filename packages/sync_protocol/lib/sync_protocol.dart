@@ -24,7 +24,13 @@ class SessionPairingPayload {
 
   final String sessionId;
   final String hostDisplayName;
-  /// MVP: 세션 대칭키(Base64). 추후 X25519 공개키 등으로 교체 가능.
+
+  /// **교사의 X25519 공개키**(Base64, 32바이트) — 페어링 v2.
+  ///
+  /// ⚠️v1 에서는 여기에 **세션 대칭키가 그대로** 들어 있었다. QR 을 촬영당하면
+  /// 같은 Wi-Fi 의 제3자가 도청·위조할 수 있었다. v2 는 공개키만 담고,
+  /// 실제 세션 키는 접속 후 핸드셰이크로 전달한다([SyncMessageTypes.hello] /
+  /// [SyncMessageTypes.sessionKey]). 공개키도 32바이트라 **QR 용량은 그대로**다.
   final String publicKeyB64;
   final int createdAtMs;
   final int ttlSeconds;
@@ -155,10 +161,101 @@ class SyncCrypto {
 }
 
 /// 도메인 메시지 타입 상수 (평문 JSON body 암호화 전).
+/// X25519 키 교환 — QR 에서 대칭키를 빼기 위한 것(페어링 v2).
+///
+/// ## 왜 세션 키를 따로 두나
+///
+/// ECDH 는 **양쪽 쌍마다 다른 비밀**을 만든다. 그것을 그대로 세션 키로 쓰면 교사가
+/// 브로드캐스트할 때 **학생 수만큼 암호화**해야 한다. 그래서 교사는 수업용 대칭키를
+/// 하나 만들어 두고, 접속한 학생에게 **그 학생만 풀 수 있게 감싸서** 한 번 전달한다
+/// (키 래핑). 그 뒤 출제 브로드캐스트는 v1 과 똑같이 대칭키 하나로 나간다.
+/// `hello` — 학생 → 교사, **평문**. 자기 X25519 공개키를 알린다(페어링 v2).
+///
+/// 암호 봉투([SyncEnvelope])가 아니라 평문인 이유: 이 메시지를 주고받아야 비로소
+/// 공유 키가 생긴다. 공개키는 공개돼도 되는 값이라 평문으로 충분하다
+/// (도청자가 봐도 세션 키를 얻지 못한다 — 그것이 ECDH 를 쓰는 이유다).
+@immutable
+class HelloPayload {
+  const HelloPayload({required this.sessionId, required this.publicKeyB64});
+
+  final String sessionId;
+  final String publicKeyB64;
+
+  Map<String, Object?> toJson() => {
+        'v': 2,
+        'type': SyncMessageTypes.hello,
+        'sessionId': sessionId,
+        'publicKeyB64': publicKeyB64,
+      };
+
+  factory HelloPayload.fromJson(Map<String, Object?> json) => HelloPayload(
+        sessionId: json['sessionId']! as String,
+        publicKeyB64: json['publicKeyB64']! as String,
+      );
+
+  String encode() => jsonEncode(toJson());
+
+  static HelloPayload decode(String raw) =>
+      HelloPayload.fromJson(jsonDecode(raw) as Map<String, Object?>);
+}
+
+/// 수신한 원문이 어떤 메시지인지 **열어보지 않고** 가른다.
+///
+/// 평문 `hello` 와 암호 봉투가 같은 소켓으로 오므로, `type` 만 먼저 읽는다.
+/// 깨진 입력이면 null (교실망 잡음 방어).
+String? peekMessageType(String raw) {
+  try {
+    final m = jsonDecode(raw) as Map<String, Object?>;
+    return m['type'] as String?;
+  } catch (_) {
+    return null;
+  }
+}
+
+abstract final class SyncKeyExchange {
+  static final _x25519 = X25519();
+
+  /// 이 수업(또는 이 학생)의 키 쌍.
+  static Future<SimpleKeyPair> newKeyPair() => _x25519.newKeyPair();
+
+  static Future<String> publicKeyB64(SimpleKeyPair pair) async =>
+      base64Encode((await pair.extractPublicKey()).bytes);
+
+  static SimplePublicKey publicKeyFromB64(String b64) =>
+      SimplePublicKey(base64Decode(b64), type: KeyPairType.x25519);
+
+  /// 상대 공개키와의 공유 비밀에서 **래핑 전용 키**를 유도한다.
+  ///
+  /// 공유 비밀을 그대로 쓰지 않고 HKDF 를 거치는 것은 표준 절차다
+  /// (같은 비밀을 여러 용도로 재사용하지 않기 위해). [sessionId] 를 nonce 로 넣어
+  /// 다른 수업의 래핑 키와 섞이지 않게 한다.
+  static Future<SecretKey> deriveWrapKey({
+    required SimpleKeyPair myKeyPair,
+    required SimplePublicKey theirPublicKey,
+    required String sessionId,
+  }) async {
+    final shared = await _x25519.sharedSecretKey(
+      keyPair: myKeyPair,
+      remotePublicKey: theirPublicKey,
+    );
+    return Hkdf(hmac: Hmac.sha256(), outputLength: 32).deriveKey(
+      secretKey: shared,
+      info: utf8.encode('chominjungum/pairing/v2'),
+      nonce: utf8.encode(sessionId),
+    );
+  }
+}
+
 abstract class SyncMessageTypes {
   static const dictationPackage = 'dictation.package';
   static const attemptSubmit = 'attempt.submit';
   static const ack = 'ack';
+
+  /// 학생 → 교사, **평문**. 학생의 X25519 공개키를 보낸다(페어링 v2).
+  static const hello = 'hello';
+
+  /// 교사 → 학생, **학생별 유도키로 암호화**. 이 수업의 세션 대칭키를 감싸 보낸다.
+  static const sessionKey = 'session.key';
 }
 
 /// 글자별 정오 요약 — 서버의 취약 자모 분석 원천 (프로토콜 v2).

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:chominjungum/app.dart';
 import 'package:chominjungum/domain/app_role.dart';
@@ -99,25 +98,32 @@ void main() {
     await tapVisible(tester, find.text('숨기기'));
     expect(find.text(encoded), findsNothing);
 
-    // ── 4. 학생 연결 — 실제 WS + AES-GCM ────────────────────────────────
-    final keyBytes = Uint8List.fromList(base64Decode(pairing.publicKeyB64));
-    final studentKey = await SyncCrypto.sessionKeyFromBytes(keyBytes);
+    // ── 4. 학생 연결 — 페어링 v2 (QR 에는 교사 **공개키**만 있다) ────────
+    // v1 에서는 여기서 `publicKeyB64` 를 대칭키로 읽었다. v2 는 접속 후 `hello` 를
+    // 보내고 교사가 감싸 보낸 세션 키를 받아야 비로소 메시지를 읽을 수 있다.
     final received = Completer<DictationPackage>();
+    final keyReady = Completer<void>();
     late StudentHubClient student;
 
     await tester.runAsync(() async {
       student = await StudentHubClient.connect(
         wsUrl: 'ws://${pairing.hubHost}:${pairing.hubPort}/',
-        sessionKey: studentKey,
         sessionId: pairing.sessionId,
+        hostPublicKeyB64: pairing.publicKeyB64,
+        onSessionKeyReady: () {
+          if (!keyReady.isCompleted) keyReady.complete();
+        },
         onMessage: (plain, env) {
           final pkg = tryDecodeDictationPackage(plain, env);
           if (pkg != null && !received.isCompleted) received.complete(pkg);
         },
       );
-      await Future<void>.delayed(const Duration(milliseconds: 500));
+      // 핸드셰이크가 끝나야 출제를 받을 수 있다.
+      await keyReady.future.timeout(const Duration(seconds: 10));
     });
     await tester.pumpAndSettle();
+    expect(student.isReady, isTrue,
+        reason: 'v2 핸드셰이크(hello → session.key)가 끝나야 한다');
 
     // ── 5. ★출제 — 화면 버튼을 실제로 누른다 (여러 문항) ─────────────────
     // 여기가 핵심이다. 이 경로가 DictationComposer(기기 내 분해)를 지나야 하고,

@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -119,15 +117,20 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
         );
         return;
       }
-      final keyBytes = Uint8List.fromList(base64Decode(payload.publicKeyB64));
-      final key = await SyncCrypto.sessionKeyFromBytes(keyBytes);
       await _client?.close();
       ref.read(studentHubClientProvider.notifier).state = null;
       _client = await StudentHubClient.connect(
         wsUrl: 'ws://$host:${payload.hubPort}/',
-        sessionKey: key,
         sessionId: payload.sessionId,
+        // v2 — QR 에는 교사 **공개키**만 있다. 접속 후 핸드셰이크로 세션 키를 받는다.
+        hostPublicKeyB64: payload.publicKeyB64,
         onDisconnected: _onDisconnected,
+        onSessionKeyReady: () {
+          if (mounted) {
+            _setStatus('허브에 연결됨. 교사가 문제를 내면 자동으로 열립니다.',
+                tone: JamminStatusTone.success);
+          }
+        },
         onMessage: (plain, env) {
           final pkg = tryDecodeDictationPackage(plain, env);
           if (pkg != null && mounted) {
@@ -143,7 +146,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
       _lastPayload = raw.trim();
       _reconnectTries = 0;
       if (mounted) {
-        _setStatus('허브에 연결됨. 교사가 문제를 내면 자동으로 열립니다.', tone: JamminStatusTone.success);
+        _setStatus('연결됨. 수업 준비 중…', tone: JamminStatusTone.info);
       }
     } catch (e) {
       if (mounted) {
