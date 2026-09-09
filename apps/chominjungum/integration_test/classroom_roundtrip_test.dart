@@ -119,23 +119,32 @@ void main() {
     });
     await tester.pumpAndSettle();
 
-    // ── 5. ★출제 — 화면 버튼을 실제로 누른다 ─────────────────────────────
+    // ── 5. ★출제 — 화면 버튼을 실제로 누른다 (여러 문항) ─────────────────
     // 여기가 핵심이다. 이 경로가 DictationComposer(기기 내 분해)를 지나야 하고,
     // **인터넷이 없어도 성공해야 한다**. 원격 jammin 호출로 되돌아가면 여기서 깨진다.
-    const sentence = '학교에 갔다.';
-    await typeVisible(tester, find.byKey(TeacherHomeKeys.sentence), sentence);
+    //
+    // 2026-09-08 부터 **한 줄이 한 문항**이다 — 받아쓰기 수업은 보통 열 문항을 낸다.
+    // 한 문항만 내면 그 변경이 깨져도 모르므로 여기서 여러 줄을 넣는다.
+    const sentences = ['학교에 갔다.', '꽃이 피었습니다', '값을 읽고 답을 썼다'];
+    const sentence = '학교에 갔다.'; // 아래 단계들이 쓰는 대표 문항
+    await typeVisible(
+        tester, find.byKey(TeacherHomeKeys.sentence), sentences.join('\n'));
     await tapVisible(tester, find.byKey(TeacherHomeKeys.broadcast));
     await tester.runAsync(() => Future<void>.delayed(const Duration(seconds: 2)));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('출제 실패'), findsNothing,
         reason: '출제가 실패하면 안 된다 — 원격 서버에 의존하고 있지 않은지 확인할 것');
+    expect(find.textContaining('${sentences.length}문항'), findsWidgets,
+        reason: '몇 문항을 보냈는지 교사에게 알려야 한다');
 
     final pkg = await tester.runAsync(
       () => received.future.timeout(const Duration(seconds: 10)),
     );
     expect(pkg, isNotNull);
-    final item = pkg!.items.single;
+    expect(pkg!.items.map((i) => i.expectedText), sentences,
+        reason: '학생이 받은 문항 목록이 교사가 낸 것과 순서까지 같아야 한다');
+    final item = pkg.items.first;
     expect(item.expectedText, sentence);
 
     // 서버 없이 분해된 결과가 jammin 스키마와 같아야 한다.
@@ -158,6 +167,8 @@ void main() {
       expectedText: item.expectedText,
       rawAnswer: wrongAnswer,
       deviceBindingId: 'itest-device-A',
+      // 2026-09-08 추가 — 교사 화면이 "학생 a3f2…" 대신 이름으로 보여야 한다.
+      studentName: '홍길동',
       correctCount: score.correctCount,
       totalCount: score.totalCount,
       submittedAtMs: DateTime.now().millisecondsSinceEpoch,
@@ -176,19 +187,24 @@ void main() {
     // ── 7. 교사 현황판에 반영된다 ────────────────────────────────────────
     expect(find.textContaining('제출 1건'), findsOneWidget,
         reason: '교사 화면이 제출을 받아 표시해야 한다');
+    expect(find.textContaining('홍길동'), findsWidgets,
+        reason: '이름을 보낸 학생은 기기 ID 가 아니라 이름으로 보여야 한다');
 
     // ── 8. Hive 실파일에 남는다 ─────────────────────────────────────────
     const repo = DictationRepository();
     expect(repo.attempts(), isNotEmpty, reason: '답안이 디스크에 남아야 한다');
-    expect(repo.loadPackage()?.items.single.expectedText, sentence);
+    expect(repo.loadPackage()?.items.map((i) => i.expectedText), sentences,
+        reason: '받은 문항 전부가 디스크에 남아야 한다(재시작 후 이어서 푼다)');
 
     // ── 8.5 학생이 실제로 보는 받아쓰기 화면까지 들어간다 ────────────────
     // 이 화면을 방문하지 않아서 **오버플로 3건을 놓쳤다**(칸 32px·앱바·툴바).
     // 오버플로는 여기서 예외로 잡히므로, 경로를 지나가는 것만으로 방어가 된다.
     await tapVisible(tester, find.text('이 기기에서 미리보기'));
     expect(tester.takeException(), isNull, reason: '받아쓰기 화면이 넘치면 안 된다');
-    expect(find.textContaining(sentence), findsWidgets,
-        reason: '출제한 문장이 학생 화면에 보여야 한다');
+    for (final t in sentences) {
+      expect(find.textContaining(t), findsWidgets,
+          reason: '출제한 문항 "$t" 이 학생 화면에 보여야 한다');
+    }
     // 뒤로 나와 교사 화면으로 복귀 (다음 단계가 교사 화면을 쓴다)
     await tester.pageBack();
     await tester.pumpAndSettle();
