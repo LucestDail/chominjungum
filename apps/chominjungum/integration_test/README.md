@@ -80,6 +80,27 @@ python3 tool/compare_glyph_ink.py                   # ③ 대조
 ★**총 잉크량만으로는 부족하다**: 특수문자·숫자 자산은 테두리가 함께 들어 있어,
 글꼴이 없어 대체 글리프가 그려져도 **경계는 그대로**다. 지문이 그 경우를 잡는다.
 
+## 🔴 실기기에서는 `flutter test integration_test` 가 아니라 `flutter drive` 를 쓴다
+
+2026-09-10 실측: 같은 기기·같은 테스트인데
+
+```
+flutter test integration_test/x.dart -d <기기>
+  → Error starting debug session in Xcode:
+    Timed out waiting for CONFIGURATION_BUILD_DIR to update.   ← 2회 연속 실패
+
+flutter drive --driver=test_driver/integration_test.dart \
+  --target=integration_test/x.dart -d <기기>
+  → All tests passed.                                          ← 한 번에 성공
+```
+
+`flutter test` 는 Xcode 디버그 세션에 붙는 방식이라 이 타임아웃을 맞는다.
+`flutter drive` 는 앱을 띄우고 VM 서비스로 접속해서 그 단계를 지나지 않는다.
+**시뮬레이터에서는 둘 다 되므로 이 차이는 실기기에서만 드러난다.**
+
+⚠️새 플러그인을 추가하면(파드 구성이 바뀌면) **흰 화면 함정이 재발**한다.
+`flutter clean` + `rm -rf ios/Pods` + `pub get` + `pod install` 후 다시 돌릴 것.
+
 ## 실서버 업싱크까지 태우기 (선택 · 9단계)
 
 서버 정보를 주면 앱의 업싱크 경로를 **끝까지** 검증한다. 안 주면 그 단계를 건너뛴다.

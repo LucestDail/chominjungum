@@ -6,3 +6,4 @@ export 'src/hangul_util.dart';
 export 'src/dictation_compare.dart';
 export 'src/hide_rules.dart';
 export 'src/stroke_order.dart';
+export 'src/answer_normalize.dart';

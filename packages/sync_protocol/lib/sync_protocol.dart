@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+export 'src/offline_bundle.dart';
+
 import 'package:cryptography/cryptography.dart';
 import 'package:meta/meta.dart';
 
@@ -159,6 +161,44 @@ abstract class SyncMessageTypes {
   static const dictationPackage = 'dictation.package';
   static const attemptSubmit = 'attempt.submit';
   static const ack = 'ack';
+}
+
+/// 교사 허브 → 학생, "받았다" 회신 (`ack` body).
+///
+/// ## 왜 필요한가
+///
+/// 지금 학생은 답안을 소켓에 밀어 넣고 **성공했다고 가정한다.** 소켓이 끊기는
+/// 중이거나 교사 앱이 잠깐 멈춰 있으면 제출이 **조용히 사라진다** — 학생 화면은
+/// "제출됨"인데 교사 현황판에는 안 뜬다. 교실에서 이건 알아채기 어렵다.
+///
+/// 회신을 받아야 비로소 제출이 끝난 것으로 본다.
+@immutable
+class AckPayload {
+  const AckPayload({required this.attemptId, this.ok = true, this.reason});
+
+  /// 어떤 제출에 대한 회신인지. 학생이 이걸로 대기 목록에서 지운다.
+  final String attemptId;
+
+  /// 거절일 수도 있다(세션이 끝났다 등). 그때는 재전송해도 소용없다.
+  final bool ok;
+  final String? reason;
+
+  Map<String, Object?> toJson() => {
+        'attemptId': attemptId,
+        'ok': ok,
+        if (reason != null) 'reason': reason,
+      };
+
+  factory AckPayload.fromJson(Map<String, Object?> json) => AckPayload(
+        attemptId: json['attemptId']! as String,
+        ok: json['ok'] != false,
+        reason: json['reason'] as String?,
+      );
+
+  String encode() => jsonEncode(toJson());
+
+  static AckPayload decode(String raw) =>
+      AckPayload.fromJson(jsonDecode(raw) as Map<String, Object?>);
 }
 
 /// 글자별 정오 요약 — 서버의 취약 자모 분석 원천 (프로토콜 v2).

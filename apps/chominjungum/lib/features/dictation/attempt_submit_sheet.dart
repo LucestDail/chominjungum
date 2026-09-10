@@ -76,7 +76,10 @@ class _AttemptSubmitSheetState extends ConsumerState<AttemptSubmitSheet> {
   }
 
   void _score(int index, DictationItem item) {
-    final answer = _controllerFor(index).text.trim();
+    // 채점 전에 **표현 차이를 없앤다** — 조합이 덜 끝난 자모(`ᄒ`), 전각 문자,
+    // 두 번 눌린 공백 때문에 맞은 답이 틀리게 세어지면 안 된다.
+    // ⚠️맞춤법은 고치지 않는다(`갓`→`갔` 은 학생이 틀린 것이다).
+    final answer = normalizeAnswer(_controllerFor(index).text);
     if (answer.isEmpty) return;
     final result = DictationCompare.score(
       expected: item.expectedText,
@@ -141,7 +144,9 @@ class _AttemptSubmitSheetState extends ConsumerState<AttemptSubmitSheet> {
       attemptId: attemptId,
       itemId: item.id,
       expectedText: item.expectedText,
-      rawAnswer: _controllerFor(index).text.trim(),
+      // 채점에 쓴 것과 **같은 문자열**을 남긴다. 다르면 교사 화면·오답 노트가
+      // 채점 결과와 어긋난 답안을 보여준다.
+      rawAnswer: normalizeAnswer(_controllerFor(index).text),
       deviceBindingId: deviceId,
       studentName: _studentName,
       correctCount: result.correctCount,
@@ -155,11 +160,25 @@ class _AttemptSubmitSheetState extends ConsumerState<AttemptSubmitSheet> {
     );
 
     try {
-      await client.sendEncrypted(
+      // 🔴소켓에 밀어 넣는 것과 **선생님 기기가 받는 것**은 다르다.
+      // 회신(ACK)을 받을 때까지 다시 보내고, 끝내 못 받으면 실패로 알린다.
+      // 그전에는 끊기는 중이면 제출이 조용히 사라지고 화면만 "제출됨"이었다.
+      // ⚠️같은 `attemptId` 로 보내므로 교사 쪽은 멱등이다(중복 제출이 아니다).
+      final delivered = await client.sendWithAck(
         type: SyncMessageTypes.attemptSubmit,
         plainBytes: payload.toUtf8Bytes(),
+        attemptId: attemptId,
       );
-      // 여기까지 왔으면 제출은 나간 것이다.
+      if (!delivered) {
+        if (!mounted) return;
+        setState(() {
+          _status = '${index + 1}번 답안이 선생님께 전달되지 않았습니다. '
+              '연결을 확인하고 다시 제출해 주세요.';
+          _statusTone = JamminStatusTone.error;
+        });
+        return;
+      }
+      // 회신을 받았으면 제출은 확실히 도착한 것이다.
       // 이력에 시각을 남기는 건 부수적이므로, 그 실패가 제출 성공을 뒤집지 않게 분리한다
       // (저장소가 없는 환경에서 "제출 실패"로 보이면 사실과 다르다).
       unawaited(_markSubmittedQuietly(attemptId));

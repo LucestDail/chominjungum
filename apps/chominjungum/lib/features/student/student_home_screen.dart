@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:sync_protocol/sync_protocol.dart';
 
+import '../../domain/dictation_models.dart';
 import '../../providers/dictation_providers.dart';
 import '../../services/local_hub_service.dart';
 import '../../services/student_profile.dart';
@@ -70,6 +71,41 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
     super.dispose();
   }
 
+  /// 번들인지 페어링인지 가른다. 번들에만 있는 키로 판단한다.
+  static bool _looksLikeBundle(String raw) {
+    try {
+      final m = jsonDecode(raw);
+      return m is Map && m.containsKey('env') && m.containsKey('key');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 오프라인 번들을 풀어 문제를 연다. **네트워크를 전혀 쓰지 않는다.**
+  Future<void> _loadOfflineBundle(String raw) async {
+    _setStatus('문제 파일 여는 중…');
+    try {
+      final bundle = OfflineBundle.decode(raw);
+      final plain = await bundle.open();
+      final pkg = DictationPackage.fromJson(
+        (jsonDecode(utf8.decode(plain)) as Map).cast<String, Object?>(),
+      );
+      if (!mounted) return;
+      ref.read(dictationPackageProvider.notifier).state = pkg;
+      unawaited(ref.read(dictationRepositoryProvider).savePackage(pkg));
+      _setStatus(
+        '문제 ${pkg.items.length}개를 받았습니다'
+        '${bundle.title == null ? "" : " (${bundle.title})"}. 허브 연결 없이 풉니다.',
+        tone: JamminStatusTone.success,
+      );
+      context.push('/practice');
+    } catch (e) {
+      if (mounted) {
+        _setStatus('문제 파일을 열지 못했습니다: $e', tone: JamminStatusTone.error);
+      }
+    }
+  }
+
   void _setStatus(String msg, {JamminStatusTone tone = JamminStatusTone.info}) {
     setState(() {
       _status = msg;
@@ -107,10 +143,21 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
     });
   }
 
+  /// QR·붙여넣기로 들어온 문자열을 처리한다.
+  ///
+  /// 두 가지를 받는다:
+  ///   - **페어링 페이로드** — 교사 허브에 접속한다(평소 경로)
+  ///   - **오프라인 문제 번들** — 허브 없이 문제만 받는다. 교실 Wi-Fi 가 단말 간
+  ///     통신을 막을 때의 우회로다(`docs/REHEARSAL.md` §1)
   Future<void> _connectFromPayloadString(String raw) async {
+    final text = raw.trim();
+    if (_looksLikeBundle(text)) {
+      await _loadOfflineBundle(text);
+      return;
+    }
     _setStatus('연결 중…');
     try {
-      final payload = SessionPairingPayload.decode(raw.trim());
+      final payload = SessionPairingPayload.decode(text);
       final host = payload.hubHost?.trim();
       if (host == null || host.isEmpty) {
         _setStatus(

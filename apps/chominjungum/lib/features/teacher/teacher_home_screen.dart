@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hangul_core/hangul_core.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import 'package:sync_protocol/sync_protocol.dart';
 import 'package:uuid/uuid.dart';
@@ -40,6 +43,7 @@ class TeacherHomeKeys {
   static const serverToken = Key('teacher.serverToken');
   static const classroomId = Key('teacher.classroomId');
   static const uploadNow = Key('teacher.uploadNow');
+  static const makeBundle = Key('teacher.makeBundle');
 }
 
 /// 교사: 로컬 허브 시작·QR·문제 전송.
@@ -309,6 +313,53 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
     unawaited(_recordAttempt(attempt));
   }
 
+  /// 허브 없이 나눠 줄 **문제 파일**을 만든다.
+  ///
+  /// 교실 Wi-Fi 가 단말 간 통신을 막으면 허브 경로가 통째로 막힌다
+  /// (`docs/REHEARSAL.md` §1). 그때도 수업이 되게 하는 우회로다 —
+  /// 파일을 AirDrop·USB·메일로 옮기거나, 짧으면 내용을 복사해 붙여 넣는다.
+  Future<void> _makeOfflineBundle() async {
+    final text = _sentence.text.trim();
+    if (text.isEmpty) return;
+    try {
+      final items = DictationComposer.composeAll(text, hideRule: _hideRule);
+      final pkg = DictationPackage(
+        version: DictationPackage.currentVersion,
+        items: items,
+      );
+      final bundle = await OfflineBundle.seal(
+        sessionId: _pending?.sessionId ?? const Uuid().v4(),
+        plainBytes: pkg.toUtf8Bytes(),
+        createdAtMs: DateTime.now().millisecondsSinceEpoch,
+        title: '${items.length}문항',
+      );
+      final json = bundle.encode();
+
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File(
+        '${dir.path}/chominjungum-${bundle.createdAtMs}.json',
+      );
+      await file.writeAsString(json);
+      await Clipboard.setData(ClipboardData(text: json));
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '문제 파일을 만들었습니다(${items.length}문항). 내용을 클립보드에 복사했습니다.'
+            '${bundle.fitsInQr ? "" : " QR 로는 너무 커서 파일·복사로 전달하세요."}',
+          ),
+          duration: const Duration(seconds: 6),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("문제 파일 만들기 실패: $e")),
+      );
+    }
+  }
+
   Future<void> _broadcast() async {
     final hub = _hub;
     final key = _sessionKey;
@@ -450,6 +501,13 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
             key: TeacherHomeKeys.broadcast,
             onPressed: _hub != null ? _broadcast : null,
             child: const Text('문제 전송 (암호화)'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            key: TeacherHomeKeys.makeBundle,
+            icon: const Icon(Icons.file_download_outlined),
+            label: const Text('문제 파일로 만들기 (허브 없이 전달)'),
+            onPressed: _makeOfflineBundle,
           ),
           const SizedBox(height: 24),
           OutlinedButton(
