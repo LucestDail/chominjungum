@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/app_role.dart';
 import '../../providers/app_role_provider.dart';
+import '../../services/ai_consent.dart';
 import '../../providers/dictation_providers.dart';
 import '../../theme/jammin_tokens.dart';
 import '../../widgets/jammin/jammin_brand_title.dart';
@@ -52,6 +53,13 @@ class SettingsScreen extends ConsumerWidget {
             loading: () => const _Row(label: '기기 ID', value: '불러오는 중…'),
             error: (e, _) => _Row(label: '기기 ID', value: '읽을 수 없습니다'),
           ),
+
+          // AI 기능은 **교사 기기에서만** 켤 수 있다. 학생 단말은 외부로
+          // 아무것도 보내지 않는 것이 이 앱의 전제다.
+          if (role == AppRole.teacher) ...[
+            const SizedBox(height: 32),
+            const _AiConsentSection(),
+          ],
 
           const SizedBox(height: 32),
           const JamminSectionHeader(
@@ -192,6 +200,97 @@ class _FontLicense extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+
+/// AI 기능 동의·키 — **교사 기기에서만** 뜬다.
+///
+/// 아직 어느 모델을 쓸지 정하지 않았으므로 기능 자체는 없다. 그런데 동의와
+/// 키 보관을 **먼저** 만들어 둔다 — 나중에 붙이면 "일단 되게" 하려고 키를
+/// 평문에 두거나 동의 없이 보내기 쉽다.
+class _AiConsentSection extends StatefulWidget {
+  const _AiConsentSection();
+
+  @override
+  State<_AiConsentSection> createState() => _AiConsentSectionState();
+}
+
+class _AiConsentSectionState extends State<_AiConsentSection> {
+  final _consent = AiConsent();
+  final _keyField = TextEditingController();
+  bool _enabled = false;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _consent.isEnabled().then((v) {
+      if (mounted) setState(() { _enabled = v; _loading = false; });
+    });
+  }
+
+  @override
+  void dispose() {
+    _keyField.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggle(bool on) async {
+    AiConsentGuard.assertTeacher(isTeacher: true);
+    if (!on) {
+      await _consent.disable();
+      if (mounted) setState(() { _enabled = false; _keyField.clear(); });
+      return;
+    }
+    final key = _keyField.text.trim();
+    if (key.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('API 키를 먼저 입력하세요.')),
+      );
+      return;
+    }
+    await _consent.enable(key);
+    if (mounted) setState(() => _enabled = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const JamminSectionHeader(
+          heading: 'AI 기능 (교사 기기 전용)',
+          subheading: '켜기 전에 아래 내용을 확인하세요.',
+          center: false,
+        ),
+        const SizedBox(height: 12),
+        for (final p in AiConsent.consentPoints)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text('· $p', style: Theme.of(context).textTheme.bodySmall),
+          ),
+        const SizedBox(height: 12),
+        if (!_enabled)
+          TextField(
+            key: const Key('settings.aiApiKey'),
+            controller: _keyField,
+            obscureText: true,
+            decoration: const InputDecoration(labelText: 'API 키'),
+          ),
+        SwitchListTile(
+          key: const Key('settings.aiEnabled'),
+          contentPadding: EdgeInsets.zero,
+          title: Text(_enabled ? 'AI 기능 켜짐' : 'AI 기능 꺼짐'),
+          subtitle: Text(
+            _enabled ? '끄면 저장된 키도 함께 삭제됩니다.' : '아직 사용할 기능이 없습니다(준비 중).',
+          ),
+          value: _enabled,
+          onChanged: _toggle,
+        ),
+      ],
     );
   }
 }
