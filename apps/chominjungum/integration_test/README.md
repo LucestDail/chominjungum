@@ -52,6 +52,34 @@ flutter test integration_test -d <device-id>
 7. **교사 현황판 반영** — 접속 수·제출 건수·평균
 8. **Hive 실파일 영속화** — 문항·답안·세션이 실제로 디스크에 남는지
 
+## 무엇을 확인하나 — `glyph_device_render_test.dart`
+
+자모 자산 83개가 **실기기에서 원본대로 그려지는지**를 픽셀로 판정한다.
+호스트에서 잰 같은 값과 대조하므로, 사람이 화면을 들여다볼 필요가 없다.
+
+```bash
+flutter test test/glyph_ink_host_test.dart          # ① 호스트 기준선
+flutter drive --driver=test_driver/integration_test.dart \
+  --target=integration_test/glyph_device_render_test.dart -d <기기>   # ② 기기 측정
+python3 tool/compare_glyph_ink.py                   # ③ 대조
+```
+
+⚠️ **이 테스트만 `flutter drive` 를 쓴다.** 측정값을 호스트 파일로 받아야 대조가
+기계적으로 되는데, 그 통로가 `reportData`(= `test_driver/`)뿐이다.
+
+⚠️ 아이폰이 **잠겨 있으면** 개발자 이미지가 마운트되지 않아
+`Could not find the built application bundle` 로 끝난다. 더 헷갈리는 건
+**`flutter drive` 가 그래도 종료코드 0 을 낸다**는 점이다 — 성공 여부는 종료코드가
+아니라 `build/glyph_ink_device.json` 이 생겼는지로 본다.
+확인: `xcrun devicectl device info lockState --device <기기>` → `passcodeRequired: false`
+
+무엇을 재나: 자산 한 장을 240×240 흰 캔버스에 그려 **경계 상자**, **8×8 격자별 잉크
+비율(모양 지문)**, 총 잉크량을 낸다. 판정은 **경계와 지문**이고 총 잉크량은 참고다
+(iOS 래스터화가 호스트보다 획을 얇게 그려 글꼴 자산이 −4~5% 나온다).
+
+★**총 잉크량만으로는 부족하다**: 특수문자·숫자 자산은 테두리가 함께 들어 있어,
+글꼴이 없어 대체 글리프가 그려져도 **경계는 그대로**다. 지문이 그 경우를 잡는다.
+
 ## 실서버 업싱크까지 태우기 (선택 · 9단계)
 
 서버 정보를 주면 앱의 업싱크 경로를 **끝까지** 검증한다. 안 주면 그 단계를 건너뛴다.
