@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/dictation_models.dart';
 import '../../providers/dictation_providers.dart';
+import '../../services/dictation_speaker.dart';
 import '../../theme/jammin_tokens.dart';
 import '../../widgets/hangul_writing_worksheet.dart';
 import '../../widgets/jammin/jammin_brand_title.dart';
@@ -10,6 +11,15 @@ import '../../widgets/jammin/jammin_print_header.dart';
 import '../../widgets/jammin/jammin_scaffold.dart';
 import '../../widgets/jammin/jammin_worksheet_box.dart';
 import 'attempt_submit_sheet.dart';
+
+/// 테스트가 받아쓰기 화면 요소를 찾는 손잡이.
+class DictationPracticeKeys {
+  const DictationPracticeKeys._();
+
+  static const dictationMode = Key('practice.dictationMode');
+  static const speechRate = Key('practice.speechRate');
+  static Key speak(int index) => Key('practice.speak.$index');
+}
 
 /// jammin 받아쓰기: 번들/허브 자모 + 지험지 위 손글씨.
 class DictationPracticeScreen extends ConsumerStatefulWidget {
@@ -23,6 +33,16 @@ class _DictationPracticeScreenState extends ConsumerState<DictationPracticeScree
   final _worksheetKeys = <GlobalKey<HangulWritingWorksheetState>>[];
   HangulWriteTool _tool = HangulWriteTool.pen;
   bool _dictationMode = false;
+
+  /// 문제 읽어 주기. 받아쓰기는 원래 **듣고 받아 적는** 수업이다.
+  final _speaker = DictationSpeaker();
+  double _speechRate = DictationSpeaker.defaultRate;
+
+  @override
+  void dispose() {
+    _speaker.dispose();
+    super.dispose();
+  }
 
   GlobalKey<HangulWritingWorksheetState> _keyForIndex(int index) {
     while (_worksheetKeys.length <= index) {
@@ -50,7 +70,20 @@ class _DictationPracticeScreenState extends ConsumerState<DictationPracticeScree
             AttemptSubmitSheet.show(context, pkg);
           },
         ),
+        if (_speaker.isAvailable)
+          PopupMenuButton<double>(
+            key: DictationPracticeKeys.speechRate,
+            tooltip: '읽기 속도',
+            icon: const Icon(Icons.speed_outlined),
+            initialValue: _speechRate,
+            onSelected: (r) => setState(() => _speechRate = r),
+            itemBuilder: (_) => [
+              for (final e in DictationSpeaker.presets.entries)
+                PopupMenuItem(value: e.value, child: Text(e.key)),
+            ],
+          ),
         IconButton(
+          key: DictationPracticeKeys.dictationMode,
           tooltip: _dictationMode ? '획순 가이드 보기' : '받아쓰기 모드 (빈칸)',
           icon: Icon(_dictationMode ? Icons.visibility_outlined : Icons.visibility_off_outlined),
           onPressed: () => setState(() => _dictationMode = !_dictationMode),
@@ -135,9 +168,32 @@ class _DictationPracticeScreenState extends ConsumerState<DictationPracticeScree
                           children: [
                             Padding(
                               padding: const EdgeInsets.only(left: 4, bottom: 8),
-                              child: Text(
-                                '${index + 1}. ${item.expectedText} (${glyphs.length}칸)',
-                                style: Theme.of(context).textTheme.titleMedium,
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      // 🔴받아쓰기 모드에서는 **정답을 보여주면 안 된다.**
+                                      // 밑그림만 지우고 제목에 정답을 적어 두면
+                                      // 그건 받아쓰기가 아니라 베껴 쓰기다.
+                                      _dictationMode
+                                          ? '${index + 1}번 · ${glyphs.length}칸'
+                                          : '${index + 1}. ${item.expectedText} '
+                                              '(${glyphs.length}칸)',
+                                      style:
+                                          Theme.of(context).textTheme.titleMedium,
+                                    ),
+                                  ),
+                                  if (_speaker.isAvailable)
+                                    IconButton(
+                                      key: DictationPracticeKeys.speak(index),
+                                      tooltip: '문제 듣기',
+                                      icon: const Icon(Icons.volume_up_outlined),
+                                      onPressed: () => _speaker.speak(
+                                        item.expectedText,
+                                        rate: _speechRate,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                             HangulWritingWorksheet(
@@ -146,6 +202,7 @@ class _DictationPracticeScreenState extends ConsumerState<DictationPracticeScree
                               glyphs: glyphs,
                               showGlyphGuides: true,
                               guideOpacity: _guideOpacity,
+                              hideRule: item.hideRule,
                               tool: _tool,
                               onInteraction: () => setState(() {}),
                             ),
