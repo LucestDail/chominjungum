@@ -18,6 +18,7 @@ import '../../widgets/hangul_writing_worksheet.dart';
 import '../../widgets/jammin/jammin_brand_title.dart';
 import '../../widgets/jammin/jammin_print_header.dart';
 import '../../widgets/jammin/jammin_scaffold.dart';
+import '../../widgets/jammin/jammin_status_banner.dart';
 import '../../widgets/jammin/jammin_worksheet_box.dart';
 import 'attempt_submit_sheet.dart';
 
@@ -28,6 +29,7 @@ class DictationPracticeKeys {
   static const dictationMode = Key('practice.dictationMode');
   static const speechRate = Key('practice.speechRate');
   static const exportPdf = Key('practice.exportPdf');
+  static const strokeAdvice = Key('practice.strokeAdvice');
   static Key speak(int index) => Key('practice.speak.$index');
 }
 
@@ -44,6 +46,9 @@ class _DictationPracticeScreenState extends ConsumerState<DictationPracticeScree
 
   /// PDF 로 담을 학습지 영역.
   final _sheetKey = GlobalKey();
+
+  /// 획순 지적(있을 때만). 글씨 평가가 아니라 **순서·방향**만이다.
+  String? _strokeAdvice;
   HangulWriteTool _tool = HangulWriteTool.pen;
   bool _dictationMode = false;
 
@@ -219,6 +224,14 @@ class _DictationPracticeScreenState extends ConsumerState<DictationPracticeScree
       children: [
         const JamminPrintHeader(),
         const SizedBox(height: 8),
+        if (_strokeAdvice != null) ...[
+          JamminStatusBanner(
+            key: DictationPracticeKeys.strokeAdvice,
+            message: _strokeAdvice!,
+            tone: JamminStatusTone.info,
+          ),
+          const SizedBox(height: 8),
+        ],
         Expanded(
           child: RepaintBoundary(
             key: _sheetKey,
@@ -277,6 +290,10 @@ class _DictationPracticeScreenState extends ConsumerState<DictationPracticeScree
                               hideRule: item.hideRule,
                               tool: _tool,
                               onInteraction: () => setState(() {}),
+                              onStrokeAdvice: (a) {
+                                if (a == _strokeAdvice) return;
+                                setState(() => _strokeAdvice = a);
+                              },
                             ),
                           ],
                         );

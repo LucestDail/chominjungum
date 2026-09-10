@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hangul_core/hangul_core.dart';
 
+import '../services/stroke_order_check.dart';
 import '../theme/jammin_tokens.dart';
 import 'hangul_worksheet_profile.dart';
 import 'hangul_writing_cell.dart';
@@ -23,6 +24,7 @@ class HangulWritingWorksheet extends StatefulWidget {
     this.tool = HangulWriteTool.pen,
     this.onInteraction,
     this.hideRule = HideRule.empty,
+    this.onStrokeAdvice,
   });
 
   final String text;
@@ -35,6 +37,12 @@ class HangulWritingWorksheet extends StatefulWidget {
 
   /// 자모 가리기 — 가려진 부위는 밑그림 없이 빈칸으로 나온다(jammin `hidebox`).
   final HideRule hideRule;
+
+  /// 획을 그을 때마다 **획순 지적**이 있으면 알린다(없으면 null).
+  ///
+  /// 글씨를 잘 썼는지가 아니라 **순서·방향**만 본다 — 좌표로 확실히 말할 수
+  /// 있는 것만. 화면이 이 문구를 그대로 보여 준다.
+  final ValueChanged<String?>? onStrokeAdvice;
 
   @override
   State<HangulWritingWorksheet> createState() => HangulWritingWorksheetState();
@@ -139,8 +147,18 @@ class HangulWritingWorksheetState extends State<HangulWritingWorksheet> {
                         setState(() => _selectedCell = i + j);
                         widget.onInteraction?.call();
                       },
-                      onStrokesChanged: (_) {
+                      onStrokesChanged: (strokes) {
                         widget.onInteraction?.call();
+                        final advise = widget.onStrokeAdvice;
+                        if (advise == null) return;
+                        advise(
+                          StrokeOrderCheck.summarize(
+                            StrokeOrderCheck.check(
+                              strokes,
+                              cellSize: profile.cellWidth,
+                            ),
+                          ),
+                        );
                       },
                     ),
                 ],
