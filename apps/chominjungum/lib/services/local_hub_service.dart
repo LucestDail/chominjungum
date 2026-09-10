@@ -18,6 +18,7 @@ class LocalHubService {
     required this.port,
     this.onAttempt,
     this.onClientCountChanged,
+    this.onStudentJoined,
   });
 
   final String sessionId;
@@ -29,6 +30,9 @@ class LocalHubService {
 
   /// 접속 학생 수 변화 콜백.
   final void Function(int count)? onClientCountChanged;
+
+  /// 학생이 접속해 자기를 알렸을 때. **제출 전에도** 명단에 넣기 위한 것이다.
+  final void Function(StudentJoinPayload student)? onStudentJoined;
 
   HttpServer? _server;
   final _channels = <WebSocketChannel>{};
@@ -73,6 +77,14 @@ class LocalHubService {
     try {
       final env = SyncEnvelope.decode(message);
       if (env.sessionId != sessionId) return;
+      if (env.type == SyncMessageTypes.studentJoin) {
+        final plain =
+            await SyncCrypto.open(sessionKey: sessionKey, envelope: env);
+        onStudentJoined?.call(
+          StudentJoinPayload.decode(utf8.decode(plain)),
+        );
+        return;
+      }
       if (env.type != SyncMessageTypes.attemptSubmit) return;
       final plain = await SyncCrypto.open(sessionKey: sessionKey, envelope: env);
       final attempt = AttemptSubmitPayload.decode(utf8.decode(plain));
@@ -185,6 +197,26 @@ class StudentHubClient {
     );
     client = StudentHubClient._(channel, sub, sessionKey, sessionId);
     return client;
+  }
+
+  /// 접속 직후 자기를 알린다. 실패해도 수업은 계속된다 — 이름은 보조 정보다.
+  Future<void> announce({
+    required String deviceBindingId,
+    String? displayName,
+  }) async {
+    try {
+      await sendEncrypted(
+        type: SyncMessageTypes.studentJoin,
+        plainBytes: utf8.encode(
+          StudentJoinPayload(
+            deviceBindingId: deviceBindingId,
+            displayName: displayName,
+          ).encode(),
+        ),
+      );
+    } catch (_) {
+      // 알리지 못해도 제출하면 그때 명단에 들어간다.
+    }
   }
 
   /// 회신을 받아 대기 중인 제출을 완료 처리한다.

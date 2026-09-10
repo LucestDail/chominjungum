@@ -24,6 +24,7 @@ import '../../widgets/jammin/jammin_brand_title.dart';
 import '../../widgets/jammin/jammin_scaffold.dart';
 import '../../widgets/jammin/jammin_section.dart';
 import '../../widgets/jammin/jammin_status_banner.dart';
+import '../../services/classroom_board.dart';
 import 'hide_rule_picker.dart';
 import 'pairing_info_card.dart';
 
@@ -66,6 +67,9 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
 
   /// 자모 가리기 — 출제와 함께 학생 기기로 간다(jammin `hidebox`).
   HideRule _hideRule = HideRule.empty;
+
+  /// 접속을 알린 학생들 — 제출 전에도 명단에 넣는다.
+  final _joined = <String, String?>{};
 
   // 서버 업싱크 (옵트인 — 비워두면 교실 모드만 쓴다)
   final _upsync = UpsyncService();
@@ -192,6 +196,10 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
       onClientCountChanged: (count) {
         if (mounted) setState(() => _connectedCount = count);
       },
+      onStudentJoined: (s) {
+        if (!mounted) return;
+        setState(() => _joined[s.deviceBindingId] = s.displayName);
+      },
     );
     try {
       await hub.start();
@@ -252,6 +260,7 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
       _pairing = null;
       _sessionKey = null;
       _connectedCount = 0;
+      _joined.clear();
     });
   }
 
@@ -518,6 +527,7 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
             const SizedBox(height: 32),
             const Divider(),
             const SizedBox(height: 24),
+            _buildProgressBoard(context),
             _buildSubmissionBoard(context),
             const SizedBox(height: 32),
             const Divider(),
@@ -579,6 +589,83 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
           JamminStatusBanner(message: _upsyncStatus!, tone: _upsyncTone),
         ],
       ],
+    );
+  }
+
+  /// 학생별 진도 — **덜 낸 학생이 위**로 온다. 교사가 도와줄 순서다.
+  Widget _buildProgressBoard(BuildContext context) {
+    final board = ClassroomBoard.of(
+      attempts: _attempts,
+      items: ref.watch(dictationPackageProvider)?.items ?? const [],
+      connectedDeviceIds: _joined.keys.toSet(),
+      knownNames: {
+        for (final e in _joined.entries)
+          if (e.value != null) e.key: e.value!,
+      },
+    );
+    if (board.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        JamminSectionHeader(
+          heading: '응시 현황',
+          subheading: '${board.doneCount}/${board.students.length}명 완료'
+              '${board.itemCount == 0 ? '' : ' · ${board.itemCount}문항'}'
+              '${board.averageAccuracy == 0 ? '' : ' · 평균 정답률 '
+                  '${(board.averageAccuracy * 100).round()}%'}',
+          center: false,
+        ),
+        const SizedBox(height: 12),
+        for (final s in board.students) ...[
+          _buildProgressTile(context, s),
+          const SizedBox(height: 8),
+        ],
+        if (board.allDone)
+          const JamminStatusBanner(
+            message: '전원이 모두 제출했습니다.',
+            tone: JamminStatusTone.success,
+          ),
+        if (board.weakness.jamo.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(
+            '학급 취약 자모: '
+            '${board.weakness.jamo.take(5).map((w) => w.letter).join(" · ")}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildProgressTile(BuildContext context, StudentProgress s) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        title: Text(s.displayName),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 6),
+            LinearProgressIndicator(
+              value: s.progress,
+              backgroundColor:
+                  Theme.of(context).colorScheme.surfaceContainerHighest,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              s.hasStarted
+                  ? '${s.submitted}/${s.total}문항 · 정답률 '
+                      '${(s.accuracy * 100).round()}%'
+                  : '아직 제출 없음',
+            ),
+          ],
+        ),
+        trailing: s.isDone
+            ? const Icon(Icons.check_circle, color: JamminTokens.success)
+            : null,
+      ),
     );
   }
 

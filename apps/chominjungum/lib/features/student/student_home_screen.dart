@@ -187,6 +187,15 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
         },
       );
       ref.read(studentHubClientProvider.notifier).state = _client;
+      // 접속했다고 알린다 — 제출 전에도 교사 명단에 뜨게(진도 0으로).
+      unawaited(
+        _client!.announce(
+          deviceBindingId: await ref.read(deviceBindingIdProvider.future),
+          displayName: _studentName.text.trim().isEmpty
+              ? null
+              : _studentName.text.trim(),
+        ),
+      );
       _lastPayload = raw.trim();
       _reconnectTries = 0;
       if (mounted) {

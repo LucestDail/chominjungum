@@ -161,6 +161,46 @@ abstract class SyncMessageTypes {
   static const dictationPackage = 'dictation.package';
   static const attemptSubmit = 'attempt.submit';
   static const ack = 'ack';
+
+  /// 학생 → 교사, 접속 직후 "나 왔다" (QR 가입 등록).
+  ///
+  /// ⚠️`hello` 라는 이름을 쓰지 않는다 — `feat/b2-x25519` 가 그 이름을 **키 교환**에
+  /// 쓰므로 겹치면 병합이 지저분해진다.
+  static const studentJoin = 'student.join';
+}
+
+/// 학생이 접속 직후 자기를 알린다 (`student.join` body).
+///
+/// ## 왜 필요한가
+///
+/// 그전에는 교사가 **제출한 학생만** 볼 수 있었다. 그런데 교사가 가장 알고 싶은
+/// 것은 **"접속은 했는데 한 문제도 안 푼 학생"** 이다 — 화면을 못 찾았거나
+/// 막혀 있는 아이다. 제출로만 명단을 만들면 그 아이가 안 보인다.
+@immutable
+class StudentJoinPayload {
+  const StudentJoinPayload({required this.deviceBindingId, this.displayName});
+
+  final String deviceBindingId;
+
+  /// 학생이 적은 이름. **선택**이고, 없으면 교사 화면이 기기 ID 축약을 쓴다.
+  final String? displayName;
+
+  Map<String, Object?> toJson() => {
+        'deviceBindingId': deviceBindingId,
+        if (displayName != null && displayName!.isNotEmpty)
+          'displayName': displayName,
+      };
+
+  factory StudentJoinPayload.fromJson(Map<String, Object?> json) =>
+      StudentJoinPayload(
+        deviceBindingId: json['deviceBindingId']! as String,
+        displayName: json['displayName'] as String?,
+      );
+
+  String encode() => jsonEncode(toJson());
+
+  static StudentJoinPayload decode(String raw) =>
+      StudentJoinPayload.fromJson(jsonDecode(raw) as Map<String, Object?>);
 }
 
 /// 교사 허브 → 학생, "받았다" 회신 (`ack` body).
