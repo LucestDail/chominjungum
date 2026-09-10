@@ -353,6 +353,16 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 오답 노트가 넘긴 규칙이 있으면 집어 든다(한 번만).
+    final handed = ref.watch(pendingHideRuleProvider);
+    if (handed != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _hideRule = handed);
+        ref.read(pendingHideRuleProvider.notifier).state = null;
+      });
+    }
+
     return JamminScaffold(
       titleWidget: const JamminBrandTitle(subtitle: '교사'),
       actions: [

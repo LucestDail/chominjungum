@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hangul_core/hangul_core.dart';
 
 import '../domain/dictation_models.dart';
 import '../services/bundled_dictation_loader.dart';
@@ -6,7 +7,6 @@ import '../services/device_binding_id.dart';
 import '../services/dictation_repository.dart';
 import '../services/jammin_add_word_service.dart';
 import '../services/local_hub_service.dart';
-import 'package:hangul_core/hangul_core.dart';
 
 export '../services/bundled_dictation_loader.dart' show BundledDictationLoader;
 
@@ -75,3 +75,9 @@ final practicePackageProvider = Provider<AsyncValue<DictationPackage>>((ref) {
 
 List<HangulGlyph> dictationItemGlyphs(DictationItem item) =>
     HangulUtil.glyphsFromAddWordResponse(item.expectedGlyphsJson);
+
+/// 오답 노트 → 출제 화면으로 넘기는 **가리기 규칙**.
+///
+/// 오답 노트가 "보기만 하는 화면"이면 값이 절반이다. 약한 자모를 찾았으면
+/// 그걸로 바로 다음 학습지를 낼 수 있어야 한다(웹 교사 콘솔의 `handoff` 와 같은 발상).
+final pendingHideRuleProvider = StateProvider<HideRule?>((ref) => null);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../domain/dictation_models.dart';
 import '../../providers/dictation_providers.dart';
@@ -87,6 +88,11 @@ class _DictationPracticeScreenState extends ConsumerState<DictationPracticeScree
           tooltip: _dictationMode ? '획순 가이드 보기' : '받아쓰기 모드 (빈칸)',
           icon: Icon(_dictationMode ? Icons.visibility_outlined : Icons.visibility_off_outlined),
           onPressed: () => setState(() => _dictationMode = !_dictationMode),
+        ),
+        IconButton(
+          tooltip: '오답 노트',
+          icon: const Icon(Icons.history_edu_outlined),
+          onPressed: () => context.push('/mistakes'),
         ),
         IconButton(
           tooltip: '서버에서 다시 불러오기',
