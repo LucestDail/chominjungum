@@ -1,4 +1,9 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,6 +12,7 @@ import '../../domain/dictation_models.dart';
 import '../../providers/app_role_provider.dart';
 import '../../providers/dictation_providers.dart';
 import '../../services/dictation_speaker.dart';
+import '../../services/worksheet_pdf.dart';
 import '../../theme/jammin_tokens.dart';
 import '../../widgets/hangul_writing_worksheet.dart';
 import '../../widgets/jammin/jammin_brand_title.dart';
@@ -21,6 +27,7 @@ class DictationPracticeKeys {
 
   static const dictationMode = Key('practice.dictationMode');
   static const speechRate = Key('practice.speechRate');
+  static const exportPdf = Key('practice.exportPdf');
   static Key speak(int index) => Key('practice.speak.$index');
 }
 
@@ -34,6 +41,9 @@ class DictationPracticeScreen extends ConsumerStatefulWidget {
 
 class _DictationPracticeScreenState extends ConsumerState<DictationPracticeScreen> {
   final _worksheetKeys = <GlobalKey<HangulWritingWorksheetState>>[];
+
+  /// PDF 로 담을 학습지 영역.
+  final _sheetKey = GlobalKey();
   HangulWriteTool _tool = HangulWriteTool.pen;
   bool _dictationMode = false;
 
@@ -92,6 +102,12 @@ class _DictationPracticeScreenState extends ConsumerState<DictationPracticeScree
           onPressed: () => setState(() => _dictationMode = !_dictationMode),
         ),
         IconButton(
+          key: DictationPracticeKeys.exportPdf,
+          tooltip: '학습지 PDF 로 저장',
+          icon: const Icon(Icons.picture_as_pdf_outlined),
+          onPressed: _exportPdf,
+        ),
+        IconButton(
           tooltip: '오답 노트',
           icon: const Icon(Icons.history_edu_outlined),
           onPressed: () => context.push('/mistakes'),
@@ -138,6 +154,47 @@ class _DictationPracticeScreenState extends ConsumerState<DictationPracticeScree
     );
   }
 
+  /// 지금 보이는 학습지를 **PDF 로 저장**한다.
+  ///
+  /// 화면에 그린 것을 그대로 담는다 — PDF 안에서 자모를 다시 배치하면
+  /// **화면과 다른 학습지**가 나올 수 있다(09-09 에 자산을 다시 그려서 앱과
+  /// 웹이 갈라졌던 것과 같은 함정이다).
+  Future<void> _exportPdf() async {
+    final boundary = _sheetKey.currentContext?.findRenderObject();
+    if (boundary is! RenderRepaintBoundary) return;
+    try {
+      // 인쇄용이라 화면 배율보다 크게 뜬다. 너무 키우면 메모리를 먹는다.
+      final image = await boundary.toImage(pixelRatio: 2.5);
+      final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      final w = image.width, h = image.height;
+      image.dispose();
+      if (data == null) return;
+
+      final pdf = WorksheetPdf.fromRgba(
+        rgba: data.buffer.asUint8List(),
+        width: w,
+        height: h,
+      );
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File(
+        '${dir.path}/받아쓰기-${DateTime.now().millisecondsSinceEpoch}.pdf',
+      );
+      await file.writeAsBytes(pdf);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('학습지를 PDF 로 저장했습니다 — ${file.path.split("/").last}'),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('PDF 저장 실패: $e')),
+      );
+    }
+  }
+
   Future<void> _refreshFromServer() async {
     try {
       final pkg = await ref.read(jamminNetworkPackageProvider.future);
@@ -163,7 +220,9 @@ class _DictationPracticeScreenState extends ConsumerState<DictationPracticeScree
         const JamminPrintHeader(),
         const SizedBox(height: 8),
         Expanded(
-          child: JamminWorksheetBox(
+          child: RepaintBoundary(
+            key: _sheetKey,
+            child: JamminWorksheetBox(
             child: SingleChildScrollView(
               physics: const NeverScrollableScrollPhysics(),
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -228,6 +287,7 @@ class _DictationPracticeScreenState extends ConsumerState<DictationPracticeScree
               ),
             ),
           ),
+        ),
         ),
       ],
     );
