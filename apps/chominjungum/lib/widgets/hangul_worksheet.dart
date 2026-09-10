@@ -12,12 +12,16 @@ class HangulWorksheet extends StatelessWidget {
     this.profile = HangulWorksheetProfile.editor,
     this.showGlyphGuides = false,
     this.scale = 1.0,
+    this.hideRule = HideRule.empty,
   });
 
   final String text;
   final HangulWorksheetProfile profile;
   final bool showGlyphGuides;
   final double scale;
+
+  /// 자모 가리기 — 참인 부위는 빈칸으로 남는다(jammin `hidebox`).
+  final HideRule hideRule;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +55,7 @@ class HangulWorksheet extends StatelessWidget {
                       glyph: g,
                       profile: profile,
                       showGlyphGuides: showGlyphGuides,
+                      hidden: hideRule.partsOf(g),
                     ),
                   ),
               ],

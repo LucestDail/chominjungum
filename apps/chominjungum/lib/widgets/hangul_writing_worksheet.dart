@@ -22,6 +22,7 @@ class HangulWritingWorksheet extends StatefulWidget {
     this.guideOpacity = 0.45,
     this.tool = HangulWriteTool.pen,
     this.onInteraction,
+    this.hideRule = HideRule.empty,
   });
 
   final String text;
@@ -31,6 +32,9 @@ class HangulWritingWorksheet extends StatefulWidget {
   final double guideOpacity;
   final HangulWriteTool tool;
   final VoidCallback? onInteraction;
+
+  /// 자모 가리기 — 가려진 부위는 밑그림 없이 빈칸으로 나온다(jammin `hidebox`).
+  final HideRule hideRule;
 
   @override
   State<HangulWritingWorksheet> createState() => HangulWritingWorksheetState();
@@ -127,6 +131,7 @@ class HangulWritingWorksheetState extends State<HangulWritingWorksheet> {
                       profile: profile,
                       showGlyphGuides: widget.showGlyphGuides,
                       guideOpacity: widget.guideOpacity,
+                      hidden: widget.hideRule.partsOf(slice[j]),
                       selected: _selectedCell == i + j,
                       tool: widget.tool,
                       onSelected: () {

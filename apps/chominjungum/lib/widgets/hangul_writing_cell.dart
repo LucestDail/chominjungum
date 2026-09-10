@@ -13,6 +13,7 @@ class HangulWritingCell extends StatefulWidget {
     required this.profile,
     this.showGlyphGuides = true,
     this.guideOpacity = 0.45,
+    this.hidden = HiddenParts.none,
     required this.selected,
     this.tool = HangulWriteTool.pen,
     this.onStrokesChanged,
@@ -23,6 +24,10 @@ class HangulWritingCell extends StatefulWidget {
   final HangulWorksheetProfile profile;
   final bool showGlyphGuides;
   final double guideOpacity;
+
+  /// 자모 가리기 — 이 부위는 밑그림을 안 그린다. 학생이 직접 채우는 칸이다.
+  final HiddenParts hidden;
+
   final bool selected;
   final HangulWriteTool tool;
   final ValueChanged<List<List<Offset>>>? onStrokesChanged;
@@ -160,6 +165,7 @@ class HangulWritingCellState extends State<HangulWritingCell> {
                   showGlyphGuides: widget.showGlyphGuides,
                   guideOpacity: widget.guideOpacity,
                   showBackground: true,
+                  hidden: widget.hidden,
                 ),
               ),
             ),

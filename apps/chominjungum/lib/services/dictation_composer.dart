@@ -32,7 +32,7 @@ class DictationComposer {
   }
 
   /// [text]를 문항으로 만든다. 출제할 수 없으면 [FormatException].
-  static DictationItem compose(String text) {
+  static DictationItem compose(String text, {HideRule hideRule = HideRule.empty}) {
     final t = text.trim();
     if (t.isEmpty) {
       throw const FormatException('정답 문장이 비어 있습니다.');
@@ -47,7 +47,7 @@ class DictationComposer {
     if (glyphs.isEmpty) {
       throw const FormatException('분해 결과가 비었습니다.');
     }
-    return DictationItem.fromGlyphs(t, glyphs);
+    return DictationItem.fromGlyphs(t, glyphs, hideRule: hideRule);
   }
 
   /// 한 문장이 학습지에서 차지하는 줄 수.
@@ -65,7 +65,10 @@ class DictationComposer {
   ///
   /// 잘못된 줄이 있으면 **몇 번째 줄인지 알려주는** [FormatException] 을 던진다 —
   /// 10줄을 붙여넣었는데 "출제 실패"만 뜨면 어디를 고쳐야 할지 알 수 없다.
-  static List<DictationItem> composeAll(String multiline) {
+  static List<DictationItem> composeAll(
+    String multiline, {
+    HideRule hideRule = HideRule.empty,
+  }) {
     final lines = multiline
         .split('\n')
         .map((l) => l.trim())
@@ -81,7 +84,7 @@ class DictationComposer {
     for (var i = 0; i < lines.length; i++) {
       final line = lines[i];
       try {
-        items.add(compose(line));
+        items.add(compose(line, hideRule: hideRule));
       } on FormatException catch (e) {
         throw FormatException('${i + 1}번 문장: ${e.message}');
       }

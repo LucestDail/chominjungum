@@ -5,6 +5,7 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hangul_core/hangul_core.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import 'package:sync_protocol/sync_protocol.dart';
 import 'package:uuid/uuid.dart';
@@ -20,6 +21,7 @@ import '../../widgets/jammin/jammin_brand_title.dart';
 import '../../widgets/jammin/jammin_scaffold.dart';
 import '../../widgets/jammin/jammin_section.dart';
 import '../../widgets/jammin/jammin_status_banner.dart';
+import 'hide_rule_picker.dart';
 import 'pairing_info_card.dart';
 
 /// 통합 테스트가 교사 화면 요소를 찾는 손잡이.
@@ -57,6 +59,9 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
   String? _error;
   int _connectedCount = 0;
   final _attempts = <AttemptSubmitPayload>[];
+
+  /// 자모 가리기 — 출제와 함께 학생 기기로 간다(jammin `hidebox`).
+  HideRule _hideRule = HideRule.empty;
 
   // 서버 업싱크 (옵트인 — 비워두면 교실 모드만 쓴다)
   final _upsync = UpsyncService();
@@ -313,7 +318,7 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
     try {
       // 분해는 기기에서 한다 — 교실에 인터넷이 없어도 출제되어야 한다. DictationComposer 주석 참조.
       // 한 줄이 한 문항이다 — 받아쓰기 수업은 보통 열 문항쯤을 한 번에 낸다.
-      final items = DictationComposer.composeAll(text);
+      final items = DictationComposer.composeAll(text, hideRule: _hideRule);
       final pkg = DictationPackage(version: DictationPackage.currentVersion, items: items);
       ref.read(dictationPackageProvider.notifier).state = pkg;
       for (final item in items) {
@@ -329,7 +334,12 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${items.length}문항을 학생 기기로 암호화 전송했습니다.')),
+          SnackBar(
+            content: Text(
+              '${items.length}문항을 학생 기기로 암호화 전송했습니다.'
+              '${_hideRule.hasEffect ? " (${_hideRule.mode.label} 가림)" : ""}',
+            ),
+          ),
         );
       }
     } catch (e) {
@@ -419,6 +429,11 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
               helperText: '한 문장 ${DictationComposer.maxGlyphsPerItem}글자까지 · '
                   '학습지 전체 ${DictationComposer.maxTotalRows}줄까지',
             ),
+          ),
+          const SizedBox(height: 8),
+          HideRulePicker(
+            value: _hideRule,
+            onChanged: (r) => setState(() => _hideRule = r),
           ),
           const SizedBox(height: 12),
           FilledButton(

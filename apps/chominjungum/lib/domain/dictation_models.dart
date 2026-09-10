@@ -12,6 +12,7 @@ class DictationItem {
     required this.expectedGlyphsJson,
     required this.contentHash,
     this.promptAudioUrl,
+    this.hideRule = HideRule.empty,
   });
 
   final String id;
@@ -20,11 +21,22 @@ class DictationItem {
   final String contentHash;
   final String? promptAudioUrl;
 
-  factory DictationItem.fromExpectedText(String expectedText, {String? id}) {
+  /// 자모 가리기 — 학습지에서 **어느 자모를 빈칸으로 낼지**(jammin `hidebox`).
+  ///
+  /// 출제와 함께 학생 기기로 간다. 채점에는 관여하지 않는다 — 가려진 것은
+  /// *보여주는 방식*이고 정답은 그대로다.
+  final HideRule hideRule;
+
+  factory DictationItem.fromExpectedText(
+    String expectedText, {
+    String? id,
+    HideRule hideRule = HideRule.empty,
+  }) {
     return DictationItem.fromGlyphs(
       expectedText,
       HangulUtil.hangulSplit(expectedText),
       id: id,
+      hideRule: hideRule,
     );
   }
 
@@ -33,6 +45,7 @@ class DictationItem {
     String expectedText,
     List<HangulGlyph> glyphs, {
     String? id,
+    HideRule hideRule = HideRule.empty,
   }) {
     final jsonList = glyphs.map((g) => g.toJson()).toList();
     final glyphsJson = jsonEncode(jsonList);
@@ -42,6 +55,7 @@ class DictationItem {
       expectedText: expectedText,
       expectedGlyphsJson: glyphsJson,
       contentHash: hash,
+      hideRule: hideRule,
     );
   }
 
@@ -51,6 +65,8 @@ class DictationItem {
         'expectedGlyphsJson': expectedGlyphsJson,
         'contentHash': contentHash,
         if (promptAudioUrl != null) 'promptAudioUrl': promptAudioUrl!,
+        // 안 가리면 아예 싣지 않는다 — 옛 학생 앱이 모르는 키를 받지 않는다.
+        if (hideRule.hasEffect) 'hideRule': hideRule.toJson(),
       };
 
   factory DictationItem.fromJson(Map<String, Object?> json) {
@@ -60,6 +76,9 @@ class DictationItem {
       expectedGlyphsJson: json['expectedGlyphsJson']! as String,
       contentHash: json['contentHash']! as String,
       promptAudioUrl: json['promptAudioUrl'] as String?,
+      hideRule: json['hideRule'] is Map
+          ? HideRule.fromJson((json['hideRule']! as Map).cast<String, Object?>())
+          : HideRule.empty,
     );
   }
 }

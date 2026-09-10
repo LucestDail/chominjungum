@@ -16,10 +16,15 @@ class HangulGlyphCell extends StatelessWidget {
     this.showGlyphGuides = true,
     this.guideOpacity = 0.45,
     this.showBackground = true,
+    this.hidden = HiddenParts.none,
   });
 
   final HangulGlyph glyph;
   final HangulWorksheetProfile profile;
+
+  /// 자모 가리기(jammin `hidebox`) — 여기서 참인 부위는 **그리지 않는다**.
+  /// 학생이 그 칸을 직접 채워야 하는 출제다. 원고지 격자는 그대로 남는다.
+  final HiddenParts hidden;
   final bool showGlyphGuides;
   final double guideOpacity;
   final bool showBackground;
@@ -88,13 +93,16 @@ class HangulGlyphCell extends StatelessWidget {
     }
     if (glyph.errorFlag) return const [];
     final layers = <Widget>[];
-    if (glyph.choCode != null) {
+    if (glyph.choCode != null && !hidden.cho) {
       layers.add(_svgFullCell(glyph.choCode!));
     }
-    if (glyph.jungCode != null) {
+    if (glyph.jungCode != null && !hidden.jung) {
       layers.add(_svgFullCell(glyph.jungCode!));
     }
-    if (!glyph.emptyJongsung && glyph.jongCode != null && glyph.jongCode != _noJongCode) {
+    if (!glyph.emptyJongsung &&
+        glyph.jongCode != null &&
+        glyph.jongCode != _noJongCode &&
+        !hidden.jong) {
       layers.add(_svgFullCell(glyph.jongCode!));
     }
     return layers;
