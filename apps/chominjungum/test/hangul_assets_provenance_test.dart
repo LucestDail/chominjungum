@@ -21,26 +21,32 @@ import 'package:flutter_test/flutter_test.dart';
 /// 같은지** 본다. 손으로 고쳤거나, 원본이 바뀌었는데 다시 안 돌렸거나, 변환 규칙을
 /// 바꾸고 자산을 갱신 안 했으면 여기서 깨진다.
 ///
-/// ⚠️jammin 저장소가 없으면 **건너뛴다**(실패시키지 않는다). 참조 원본은 별도
-/// 저장소라 항상 옆에 있으리라 보장할 수 없다 — 다만 있을 때는 반드시 검사한다.
+/// ## 참조 저장소가 없을 때
+///
+/// jammin·chominjungum-web 은 별도 저장소라 항상 옆에 있으리라 보장할 수 없다.
+/// 없으면 **건너뛴다**(실패시키지 않는다). 다만 🔴**조용히 통과시키지는 않는다** —
+/// 검사하지 않은 것이 초록불로 보이면 그것이야말로 이 파일이 막으려는 실패다.
+/// 검사기가 종료코드 **2 = "검사 못 함"**(1 = "검사했고 틀렸다")을 내고,
+/// 여기서 `markTestSkipped` 로 **화면에 남긴다.**
+///
+/// 경로는 ①환경변수(`JAMMIN_DIR` / `CHOMINJUNGUM_WEB_DIR`) ②워크스페이스 형제
+/// 저장소 순으로 찾는다. 절대경로를 박아 두면 이 맥 한 대에서만 동작한다.
+/// 검사기가 "참조 저장소가 없어 검사하지 못했다"를 알리는 종료코드.
+/// 0(통과)·1(불일치)과 반드시 구분되어야 한다.
+const _exitCannotCheck = 2;
+
 void main() {
   test('자모 자산 83개가 jammin 원본에서 재생성한 것과 동일하다', () {
     final converter = File('tool/build_hangul_assets.py');
     expect(converter.existsSync(), isTrue, reason: '변환기가 없다');
 
-    // 변환기가 읽는 원본 경로를 소스에서 직접 뽑는다(경로를 두 곳에 적지 않는다).
-    final src = RegExp(r'SRC = Path\(\s*"([^"]+)"')
-        .firstMatch(converter.readAsStringSync())
-        ?.group(1);
-    expect(src, isNotNull, reason: '변환기에서 원본 경로를 못 찾았다');
-
-    if (!Directory(src!).existsSync()) {
-      markTestSkipped('jammin 원본이 없다 ($src) — 자산 출처 검사를 건너뛴다');
-      return;
-    }
-
     final r = Process.runSync('python3', ['tool/build_hangul_assets.py', '--check']);
     final out = '${r.stdout}${r.stderr}'.trim();
+
+    if (r.exitCode == _exitCannotCheck) {
+      markTestSkipped('jammin 원본이 없어 자산 출처 검사를 건너뛴다.\n$out');
+      return;
+    }
 
     expect(
       r.exitCode,
@@ -64,6 +70,12 @@ void main() {
 
     final r = Process.runSync('python3', ['tool/check_font_provenance.py']);
     final out = '${r.stdout}${r.stderr}'.trim();
+
+    if (r.exitCode == _exitCannotCheck) {
+      markTestSkipped('웹 저장소가 없어 글꼴 대조를 건너뛴다.\n$out');
+      return;
+    }
+
     expect(r.exitCode, 0, reason: '앱 글꼴이 웹과 다르다.\n$out');
   });
 }

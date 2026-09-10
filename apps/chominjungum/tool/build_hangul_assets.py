@@ -36,15 +36,24 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
+APP_DIR = Path(__file__).resolve().parent.parent      # apps/chominjungum
+WORKSPACE = APP_DIR.parent.parent.parent              # jammin 과 같은 자리(형제 저장소)
+
+# 원본 위치. 절대경로를 박아 두면 **이 맥 한 대에서만 동작**하고 다른 곳에서는
+# 조용히 건너뛴다 — 검사하지 않는 검사기가 된다. 그래서
+#   ① 환경변수 `JAMMIN_DIR`  ② 워크스페이스 형제 저장소  순으로 찾는다.
 SRC = Path(
-    "/Users/seunghyun.oh/Workspace/Private/jammin/src/main/resources/static/hangul"
-)
-DST = Path(__file__).resolve().parent.parent / "assets" / "hangul"
+    os.environ.get("JAMMIN_DIR")
+    or WORKSPACE / "jammin"
+) / "src/main/resources/static/hangul"
+
+DST = APP_DIR / "assets" / "hangul"
 
 BOX = 623.6
 SVG_NS = "http://www.w3.org/2000/svg"
@@ -201,7 +210,9 @@ def convert(path: Path) -> str:
 def main() -> int:
     check = "--check" in sys.argv
     if not SRC.is_dir():
-        print(f"원본 없음: {SRC}", file=sys.stderr)
+        # ⚠️2 = "검사 못 함"(1 = "검사했고 틀렸다"와 구분한다).
+        # 조용히 0 을 내면 검사하지 않은 것이 통과로 보인다.
+        print(f"원본 없음: {SRC}\n  → jammin 저장소를 워크스페이스 형제로 두거나 JAMMIN_DIR 를 지정하세요.", file=sys.stderr)
         return 2
     DST.mkdir(parents=True, exist_ok=True)
 

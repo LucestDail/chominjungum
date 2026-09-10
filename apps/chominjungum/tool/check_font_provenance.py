@@ -27,15 +27,23 @@ jammin 은 글꼴을 **두 버전** 배포한다:
 
 from __future__ import annotations
 
+import os
 import struct
 import sys
 import zlib
 from pathlib import Path
 
-APP = Path(__file__).resolve().parent.parent / "assets" / "fonts" / "KCCDodamdodamR.ttf"
+APP_DIR = Path(__file__).resolve().parent.parent      # apps/chominjungum
+WORKSPACE = APP_DIR.parent.parent.parent              # 형제 저장소가 놓이는 자리
+
+APP = APP_DIR / "assets" / "fonts" / "KCCDodamdodamR.ttf"
+
+# 절대경로를 박아 두면 이 맥 한 대에서만 동작한다.
+#   ① 환경변수 `CHOMINJUNGUM_WEB_DIR`  ② 워크스페이스 형제 저장소
 WEB = Path(
-    "/Users/seunghyun.oh/Workspace/Private/chominjungum-web/frontend/public/fonts/KCCDodamdodam.woff"
-)
+    os.environ.get("CHOMINJUNGUM_WEB_DIR")
+    or WORKSPACE / "chominjungum-web"
+) / "frontend/public/fonts/KCCDodamdodam.woff"
 
 
 def read_sfnt(data: bytes) -> dict[str, bytes]:
@@ -118,8 +126,15 @@ def outline(g: bytes):
 def main() -> int:
     for p in (APP, WEB):
         if not p.exists():
-            print(f"없음: {p} — 검사를 건너뛴다", file=sys.stderr)
-            return 0
+            # 🔴 여기서 0(통과)을 내면 **검사하지 않은 것이 초록불로 보인다.**
+            # 이 파일이 막으려는 실패가 바로 그런 종류라, 자기 자신이 같은 함정에
+            # 빠지면 안 된다. 2 = "검사 못 함"으로 1(=틀렸다)과 구분한다.
+            print(
+                f"없음: {p}\n"
+                "  → 형제 저장소로 두거나 CHOMINJUNGUM_WEB_DIR 를 지정하세요.",
+                file=sys.stderr,
+            )
+            return 2
 
     a = read_sfnt(APP.read_bytes())
     w = read_sfnt(WEB.read_bytes())

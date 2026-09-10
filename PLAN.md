@@ -32,7 +32,9 @@
 
 ### 2.3 `sync_protocol`
 
-- **페어링**: `SessionPairingPayload` (QR/JSON) — `sessionId`, `hubHost`, `hubPort`, `publicKeyB64`(실제로는 **대칭 세션 키**)
+- **페어링**: `SessionPairingPayload` (QR/JSON) — `sessionId`, `hubHost`, `hubPort`, `publicKeyB64`
+  - ⚠️**main 기준으로는 이름과 달리 대칭 세션 키가 그대로 담긴다.** X25519 로 바꾼 것은
+    `feat/b2-x25519` 브랜치에만 있다(§6 1.1 · §13). 즉 **§3 의 "세션 키 QR 평문" 부채는 main 에 살아 있다**
 - **전송**: `SyncEnvelope` + `SyncCrypto` (AES-GCM)
 - **메시지**: `dictation.package`(교사→학생 브로드캐스트), `attempt.submit`(학생→교사, `AttemptSubmitPayload`) 앱 연동 완료. `ack`는 타입만 정의
 
@@ -43,7 +45,7 @@
 | jammin 디자인 토큰·KCC 도담도담체·레이아웃 | `lib/theme/jammin_tokens.dart`, `app_theme.dart`, `widgets/jammin/*` |
 | Riverpod | `ProviderScope`, `dictationPackageProvider` |
 | go_router | `/`, `/practice` |
-| Hive | `initFlutter()`만 — **Box·영속 저장 미사용** |
+| Hive | ✅ `LocalStore` — Box 3개(`cjm.items.v1`/`cjm.attempts.v1`/`cjm.sessions.v1`), 값은 JSON 문자열 |
 | 기기 ID | `DeviceBindingId` → Secure Storage UUID |
 | 엔트리 | 학생 `main.dart`, 교사 `main_teacher.dart` |
 
@@ -51,7 +53,7 @@
 
 - LAN WebSocket 허브 (`LocalHubService`, `0.0.0.0:30020`)
 - Wi‑Fi IP 자동 조회 + 수동 IP 입력
-- QR + 페이로드 JSON 화면 표시
+- QR 표시 (`PairingInfoCard`) — **페이로드 JSON 은 기본 숨김**, 명시 토글로만 펼친다
 - 받아쓰기 문장 입력 → `DictationPackage` 암호화 브로드캐스트
 - 학습 화면 미리보기 (`/practice`)
 - **제출 현황판**: 접속 학생 수·제출 건수·평균 점수 + 제출 목록(기기ID 축약·답안·정답·점수·시각). 같은 기기+같은 문항 재제출은 최신 것으로 대체
@@ -67,7 +69,8 @@
 - jammin `static/hangul/*.svg` → `assets/hangul/` + `HangulWorksheet` / `HangulGlyphCell` (editor 프로필)
 - 지험지 위 손글씨 워크시트 (받아쓰기 모드·획순 가이드 토글, 펜/지우개) — 학생·교사 공용 화면
 - **채점·제출 시트** (`AttemptSubmitSheet`, 앱바 ✅ 버튼): 문항별 답안 입력 → `DictationCompare` 온디바이스 채점 → 점수%·글자별 ✓/✗·정답 표시 → 허브 연결 시 `attempt.submit` 암호화 제출
-- ⚠️ **OCR UI 없음** (`OcrService`는 존재하나 화면 미연결), 손글씨 자동 채점 없음 (키보드 입력만 채점)
+- ⚠️ **손글씨 자동 채점 없음**(키보드 입력만 채점). `OcrService` 도 **없다** —
+  ML Kit 은 2026-09-07 에 걷어냈다(arm64 시뮬레이터 슬라이스 부재, §11)
 
 ### 2.8 플랫폼
 
@@ -84,7 +87,8 @@
 
 **정말 없는 것**
 - 손글씨 → 텍스트 인식 (2026-09-07 에 ML Kit 을 걷어냈다 — §6 Phase 2.2 참고)
-- TTS · 획순 가이드 · AI 출제/교정 · 부모 모드
+- TTS · **따라쓰기 캔버스**(획순 *순서* 안내) · AI 출제/교정 · 부모 모드
+  - ⚠️획순 **가이드 토글**(밑그림 농도)은 **있다** — 2026-09-10 정정
 - 앱 안의 학급 관리 (서버 쪽 `chominjungum-web` 교사 콘솔이 담당한다)
 - Android release 서명 분리 · 스토어 배포
 - iOS 스킴 분리 (Android 는 flavor 로 이미 갈려 있다)
@@ -104,11 +108,13 @@
 
 | 이슈 | 설명 | 권장 조치 |
 |------|------|----------|
-| 세션 키 QR 평문 | `publicKeyB64`에 대칭 키가 QR/화면에 노출 | 키 교환 분리 또는 QR에는 일회용 토큰만 |
-| `ws://` 평문 | Android cleartext, LAN 스니핑 가능 | 교실망 한정 문서화 또는 `wss` 검토 |
-| 페이로드 화면 노출 | 교사 화면 `SelectableText`에 전체 JSON | QR만 표시, JSON은 개발자 메뉴로 |
-| 기기 ID UI 노출 | 받아쓰기 화면에 UUID 표시 | 설정/디버그로 이동 또는 제거 |
-| Hive 미사용 | init만 됨 (제출 목록도 메모리 휘발) | Box 설계 후 시도·이력 저장 |
+| 이슈 | 상태 (2026-09-10 코드 실측) |
+|---|---|
+| **세션 키 QR 평문** | 🔴**살아 있다(main 기준)**. 해결분은 `feat/b2-x25519` 브랜치에만 있고 리허설 뒤 병합 예정 |
+| `ws://` 평문 | 🟡 유지. 교실망 한정으로 문서화됨(`docs/REHEARSAL.md`) |
+| 페이로드 화면 노출 | ✅ 해결(2026-09-05) — `PairingInfoCard` 기본 숨김 + 명시 토글 |
+| 기기 ID UI 노출 | ✅ 해결(2026-09-05) — 설정 화면으로 이동, 받아쓰기 화면 노출 0 |
+| Hive 미사용 | ✅ 해결(2026-09-05) — `LocalStore` Box 3개 |
 
 기타:
 
@@ -123,7 +129,7 @@
 ```
 packages/hangul_core     ← jammin 호환 분해·채점
 packages/sync_protocol   ← 페어링·암호화 envelope
-apps/chominjungum        ← UI·허브·OCR
+apps/chominjungum        ← UI·허브 (OCR 없음 — 09-07 제거)
 
 교사 ── QR(SessionPairingPayload) ──► 학생
      └── ws://<IP>:30020/ (SyncEnvelope + AES-GCM) ──┘
@@ -144,7 +150,7 @@ M3 + jammin 톤. 상세 토큰은 기존 설계 유지.
 | Secondary | `#006D3D` / Container `#93F7B9` | 정답·교사 CTA |
 | Tertiary | `#9C4234` | 오답·교정 |
 
-- 폰트: UI 기본 + **(미연동)** KCC 도담도담체
+- 폰트: **KCC 도담도담체 번들·연동 완료**(2026-09-05). OFL 확인, `assets/fonts/KCCDodamdodam-LICENSE.txt` 고지
 - 채점 UI: Secondary ✓ / Tertiary ✗ (연습 화면에 부분 적용, 전용 결과 화면 없음)
 
 ---
@@ -157,7 +163,17 @@ M3 + jammin 톤. 상세 토큰은 기존 설계 유지.
 
 - [x] 학생 채점 완료 → `SyncMessageTypes.attemptSubmit`으로 교사 허브 전송 (2026-09-02)
 - [x] 교사 화면: 접속 학생 수·최근 제출·점수 요약 (최소 리스트) (2026-09-02)
-- [x] QR 페이로드에서 세션 키 노출 방식 개선 (2026-09-09, **B2**: QR=교사 X25519 공개키 + `hello`/`session.key` 핸드셰이크 + 키 래핑. `feat/b2-x25519` — ⚠️**리허설 후 main 병합**)
+- [~] QR 페이로드에서 세션 키 노출 방식 개선 — 🔴**main 에는 아직 안 들어갔다.** (2026-09-09, **B2**: QR=교사 X25519 공개키 + `hello`/`session.key` 핸드셰이크 + 키 래핑. `feat/b2-x25519` — ⚠️**리허설 후 main 병합**)
+  - ⚠️2026-09-10 정정: 이 항목이 `[x]` 였는데 **브랜치 작업을 완료로 잡은 것**이었다.
+    그 탓에 §3 의 "세션 키 QR 평문" 부채가 문서상 해결된 것처럼 보였다. main 에는
+    사전 검증(`x25519_feasibility_test.dart`)만 있고 `hello`/`session.key` 는 없다.
+    ✅병합 자체는 안전하다 — `git merge-tree` 로 계산해 보니 **충돌 0**, 09-09~10 자산
+    작업(변환기·출처 가드·골든·로고 PNG)이 전부 살아남고, 자모 SVG 83개는 **해시까지 동일**하다.
+    브랜치에만 남아 있는 옛 파일 둘(`navbar-logo.svg` 손그림 · `hangul_cell_grid_background.dart`
+    598 좌표 격자)도 **되살아나지 않는다**(main 의 삭제가 유지된다). rebase 불필요 —
+    푸시된 브랜치를 괜히 rebase 하는 것이 오히려 위험하다.
+    ⚠️`git diff main..feat/b2-x25519 --stat` 이 108파일 −3791 로 보이는 것은 **2-dot diff 착시**다
+    (브랜치가 stale 하니 main 의 추가분이 삭제로 집계된다). 판단은 `git merge-tree --write-tree` 로 할 것.
 - [x] 교사 화면 JSON 전체 노출 제거 (2026-09-05, `PairingInfoCard` 기본 숨김 + 명시 토글)
 - [~] 허브 바인딩 **IP** 수동 입력은 있다(`TeacherHomeKeys.hostOverride`). 포트는 `SyncDefaults.hubPort`(30020) 고정 — 교실에서 바꿀 일이 없어 UI 를 두지 않았다
 
@@ -217,7 +233,9 @@ M3 + jammin 톤. 상세 토큰은 기존 설계 유지.
 **2.3 획순 연습**
 
 - [x] jammin SVG 자산 번들 (`assets/hangul/` — 83개. 받아쓰기 칸의 밑그림으로 실제 렌더된다)
-- [ ] 획순 가이드·따라쓰기 캔버스
+- [x] 획순 가이드 토글 (`dictation_practice_screen.dart` · `HangulGlyphCell.showGlyphGuides`)
+      — §2.7 은 구현으로 서술하는데 여기만 미완으로 남아 있었다(2026-09-10 정정)
+- [ ] 따라쓰기 캔버스(획순 **순서**를 안내하는 애니메이션) — 토글과 별개로 아직 없다
 - [ ] 경로 vs SVG 획순 비교 (규칙 기반)
 
 **2.4 (선택) AI**
@@ -413,6 +431,8 @@ HTTP Basic 을 요구하므로, 같은 헤더에 Bearer 를 실으면 Basic 이 
 ### 검증 현황
 
 **123 GREEN** (앱 82 / hangul_core 30 / sync_protocol 11) · `flutter analyze` 0
+> ⚠️위는 **작성 시점(2026-09-07)의 값**이다. 현재값은 §14 를 볼 것 — 이 문서 곳곳의
+> 테스트 수는 그날의 기록이므로 최신값으로 읽으면 안 된다.
 시뮬레이터 빌드 아키텍처 `x86_64 arm64` 회복 · 빌드 156초 → 25초
 
 ---
