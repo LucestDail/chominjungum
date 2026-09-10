@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hangul_core/hangul_core.dart';
 
 import '../../providers/dictation_providers.dart';
+import '../../services/learning_summary.dart';
 import '../../services/mistake_analysis.dart';
 import '../../theme/jammin_tokens.dart';
 import '../../widgets/jammin/jammin_brand_title.dart';
@@ -18,6 +19,49 @@ class MistakeNoteKeys {
   static const makeWorksheet = Key('mistake.makeWorksheet');
 }
 
+/// 학습 요약 카드 — "얼마나 했고 나아지고 있나".
+///
+/// ⚠️**등수·비교를 만들지 않는다.** 받아쓰기에서 아이를 줄 세우는 것은 목적이 아니다.
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard(this.s);
+  final LearningSummary s;
+
+  @override
+  Widget build(BuildContext context) {
+    final trend = s.isImproving;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('지금까지 ${s.gradedAttempts}문항 · 정답률 '
+                '${(s.accuracy * 100).round()}%',
+                style: Theme.of(context).textTheme.titleMedium),
+            if (s.streakDays > 0) ...[
+              const SizedBox(height: 6),
+              Text('${s.streakDays}일 연속으로 풀고 있어요',
+                  style: Theme.of(context).textTheme.bodyMedium),
+            ],
+            if (trend != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                trend ? '전보다 나아지고 있어요 👍' : '전보다 조금 어려워졌어요',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: trend
+                          ? JamminTokens.success
+                          : JamminTokens.textMuted,
+                    ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// 오답 노트 — **기기에 쌓인 답안만으로** 약한 자모·글자를 보여준다.
 ///
 /// 서버도 AI 도 쓰지 않는다. 채점이 이미 글자별 정오를 남기므로, 정답의 자모
@@ -31,10 +75,12 @@ class MistakeNoteScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final repo = ref.watch(dictationRepositoryProvider);
+    final attempts = repo.attempts();
     final analysis = MistakeAnalysis.of(
-      attempts: repo.attempts(),
+      attempts: attempts,
       items: repo.loadItems(),
     );
+    final summary = LearningSummary.of(attempts, now: DateTime.now());
 
     return JamminScaffold(
       titleWidget: const JamminBrandTitle(subtitle: '오답 노트'),
@@ -42,6 +88,8 @@ class MistakeNoteScreen extends ConsumerWidget {
           ? const _Empty()
           : ListView(
               children: [
+                _SummaryCard(summary),
+                const SizedBox(height: 24),
                 JamminSectionHeader(
                   heading: '자주 틀리는 자모',
                   subheading: '답안 ${analysis.gradedAttempts}개 · '

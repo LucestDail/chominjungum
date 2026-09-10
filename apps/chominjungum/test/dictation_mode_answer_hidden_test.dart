@@ -54,6 +54,13 @@ void main() {
     );
   });
 
+  testWidgets('🔴학생 화면에는 jammin 서버 갱신 버튼이 없다', (tester) async {
+    // 기본 역할이 학생이므로 override 없이 뜨는 화면이 곧 학생 화면이다.
+    // 인터넷 없는 교실에서 누르면 실패만 보게 되고, "중앙 서버 없음" 전제와도 어긋난다.
+    await pump(tester, dictationMode: false);
+    expect(find.byIcon(Icons.cloud_download_outlined), findsNothing);
+  });
+
   testWidgets('받아쓰기 모드에도 칸 수는 알려준다 — 몇 글자인지는 힌트가 아니다', (tester) async {
     await pump(tester, dictationMode: true);
     expect(find.textContaining('2칸'), findsOneWidget);
