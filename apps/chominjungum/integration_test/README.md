@@ -18,6 +18,21 @@
 
 ## 실행
 
+🔴 **실기기에서는 `all_device_tests.dart` 하나로 돌린다.** 파일별로 따로 돌리면
+설치할 때마다 사람이 "개발자 신뢰"를 눌러 줘야 한다(아래 절 참고).
+
+```bash
+cd apps/chominjungum
+flutter drive --driver=test_driver/integration_test.dart \
+  --target=integration_test/all_device_tests.dart -d <기기>
+python3 tool/compare_glyph_ink.py     # 자모 렌더 대조(호스트 기준선 필요)
+```
+
+2026-09-12 실측: 설치 1회 · 신뢰 1회로 **20건 전부 통과**(56초),
+자모 83개 호스트↔기기 지문·경계·총량 **불일치 0건**.
+
+개별 파일을 돌리고 싶을 때는 아래를 쓴다.
+
 ```bash
 cd apps/chominjungum
 
@@ -131,6 +146,73 @@ flutter drive --driver=test_driver/integration_test.dart \
 
 ⚠️새 플러그인을 추가하면(파드 구성이 바뀌면) **흰 화면 함정이 재발**한다.
 `flutter clean` + `rm -rf ios/Pods` + `pub get` + `pod install` 후 다시 돌릴 것.
+
+## 🔴 흰 화면 + VM 미발견에는 원인이 **둘** 있다 — 로그로 가른다
+
+2026-09-12 에 하마터면 엉뚱한 것을 고칠 뻔했다. 증상이 똑같다:
+**앱이 흰 화면이고 `The Dart VM Service was not discovered` 가 뜬다.**
+
+| 원인 | 로그가 덧붙이는 말 | 조치 |
+|---|---|---|
+| `objective_c` dlopen (빌드 갈아타기) | 없음 — 그냥 타임아웃 | `flutter clean` + `rm -rf ios/Pods` + `pub get` |
+| **앱의 로컬 네트워크 권한** (무선일 때만) | `Click "Allow" … Settings > Your App Name > Local Network` | **설정 > 초민정음 > 로컬 네트워크 켜기** (탭 한 번) |
+
+무선 디버깅은 앱이 자기 VM 서비스를 **mDNS 로 광고**하고 호스트가 찾아가는 구조라,
+iOS 가 그 광고를 권한으로 막으면 발견이 안 된다. **앱을 지웠다 새로 설치하면 이 권한이
+초기화된다** — 09-08 에 허용해 둔 것이 09-12 재설치로 날아가 그대로 걸렸다.
+⚠️**설정에서 켜도 지금 도는 앱은 회복 못 한다**(iOS 가 앱 재시작을 요구) — 켜고 다시 돌릴 것.
+
+★**케이블로 꽂으면 이 권한이 아예 필요 없다**(VM 서비스가 USB 로 간다).
+사람이 자리에 없는 채로 무인 검증을 돌릴 거라면 케이블이 맞다.
+
+⚠️**`integration_test` 앱은 원래 흰 화면이다** — 테스트가 위젯을 펌프하기 전까지 아무것도
+안 그린다. 드라이버가 붙기 전에 죽으면 흰 화면만 남으므로, **흰 화면 자체는 아무것도
+말해 주지 않는다.** 판정은 로그로 한다.
+
+## 🔴 무료 프로비저닝에서는 **설치 1회 = 신뢰 탭 1회**다
+
+2026-09-12 에 테스트 3개를 연달아 큐에 넣었다가 중단됐다. `flutter drive` 는
+실행할 때마다 앱을 **지웠다 다시 설치**하는데, 이 앱은 개인 Apple ID 무료
+프로비저닝(`Apple Development: …@gmail.com`)으로 서명되고 **그 개발자의 앱이 기기에서
+사라지면 신뢰 항목도 같이 날아간다.** 그래서 매번
+
+> 설정 > 일반 > VPN 및 기기 관리 > 개발자 앱 > 신뢰
+
+를 사람이 눌러야 한다. 자리를 비우면 거기서 멈춘다.
+
+⚠️**"인증서당 1회"는 유료 개발자 계정 기준이고 여기엔 틀리다.** 무료 서명은
+인증서도 7일 만료다. 유료 계정($99/yr)이면 이 문제 자체가 없다.
+
+⇒ **`all_device_tests.dart` 로 묶어 한 번에 돌린다.** 설치 1회 · 신뢰 1회.
+
+## 🔴 device ↔ simulator 를 오가면 그때마다 흰 화면 함정을 밟는다
+
+같은 날, 합본을 시뮬레이터에서 예행 연습하려다 정확히 이걸 맞았다(직전까지 device
+빌드를 반복한 뒤였다). 증상은 **앱 isolate 는 resume 되는데 driver extension 이
+끝내 안 올라오고**, `flutter:` 출력이 **한 줄도 없다**.
+
+⇒ 검증 대상이 실기기면 **시뮬레이터 예행을 넣지 않는 쪽이 빠르다.** 굳이 오가야
+한다면 매번 `flutter clean` + `rm -rf ios/Pods` + `pub get` + `pod install` 값을 치러야 한다.
+⚠️`flutter clean` 은 `build/` 를 지우므로 **`build/glyph_ink_host.json`(호스트 기준선)이
+같이 날아간다** — 먼저 빼 두고 나중에 되돌릴 것.
+
+## 🔴 기기가 `unavailable` 이면 폰이 아니라 **맥**을 먼저 의심한다
+
+2026-09-12: 폰은 잠금 해제·같은 Wi-Fi·개발자 모드 ON 이었는데도 이틀 내내
+`unavailable` 이었다. 실제로는 **맥의 CoreDevice 데몬이 09-10 마지막 케이블 연결
+상태에 굳어** 있었다.
+
+```bash
+# 진단 — 폰이 정말 안 보이는 건지부터 가른다
+xcrun devicectl list devices --json-output /tmp/d.json   # tunnelState / transportType / pairingState
+ping6 -c2 <기기이름>.local                                 # LAN 도달 여부(= 폰은 멀쩡한가)
+
+# 조치 — 두 데몬을 죽이면 launchd 가 다시 띄운다(sudo 불필요)
+pkill -f remotepairingd; pkill -f CoreDeviceService
+```
+
+실측: `tunnel: unavailable / transport: None` → 재기동 후 `tunnel: connected /
+transport: localNetwork`, `flutter devices` 가 곧바로 무선 기기로 인식.
 
 ## 실서버 업싱크까지 태우기 (선택 · 9단계)
 
