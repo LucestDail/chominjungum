@@ -1,3 +1,5 @@
+import '../../domain/app_role.dart';
+import '../../providers/app_role_provider.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -218,7 +220,7 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
     final keyBytes = await SyncCrypto.sessionKeyBytes(key);
     final payload = SessionPairingPayload(
       sessionId: sessionId,
-      hostDisplayName: '교사',
+      hostDisplayName: ref.read(appRoleProvider).hostDisplayName,
       publicKeyB64: base64Encode(keyBytes),
       createdAtMs: DateTime.now().millisecondsSinceEpoch,
       ttlSeconds: 600,
@@ -424,7 +426,7 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
     }
 
     return JamminScaffold(
-      titleWidget: const JamminBrandTitle(subtitle: '교사'),
+      titleWidget: JamminBrandTitle(subtitle: ref.watch(appRoleProvider).displayName),
       actions: [
         IconButton(
           tooltip: '설정',
@@ -529,10 +531,17 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
             const SizedBox(height: 24),
             _buildProgressBoard(context),
             _buildSubmissionBoard(context),
-            const SizedBox(height: 32),
-            const Divider(),
-            const SizedBox(height: 24),
-            _buildUpsyncPanel(context),
+            // 🔴 **부모 모드에서는 통째로 숨긴다.** 2026-09-16 결정이
+            //    "집에서 부모 기기가 허브 — **서버가 필요 없다**" 였다. 집 기기에
+            //    학급 토큰과 학교 서버 주소를 넣게 만들면 그 결정을 되돌리는 것이고,
+            //    자녀 답안이 학교 서버로 나가는 길을 여는 것이다.
+            //    ⚠️ 판정은 `AppRole.canUpsync` 한 곳에 있다(화면마다 적으면 한 곳이 빠진다).
+            if (ref.watch(appRoleProvider).canUpsync) ...[
+              const SizedBox(height: 32),
+              const Divider(),
+              const SizedBox(height: 24),
+              _buildUpsyncPanel(context),
+            ],
           ],
         ],
       ),
@@ -629,7 +638,7 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
         if (board.weakness.jamo.isNotEmpty) ...[
           const SizedBox(height: 12),
           Text(
-            '학급 취약 자모: '
+            '${ref.read(appRoleProvider).groupName} 취약 자모: '
             '${board.weakness.jamo.take(5).map((w) => w.letter).join(" · ")}',
             style: Theme.of(context).textTheme.bodySmall,
           ),

@@ -14,7 +14,8 @@ GoRouter createRouter(AppRole role) {
       GoRoute(
         path: '/',
         builder: (context, state) =>
-            role == AppRole.teacher ? const TeacherHomeScreen() : const StudentHomeScreen(),
+            // 🔴 "교사인가" 가 아니라 **"허브인가"** 를 묻는다 — 부모도 허브다
+            role.isHub ? const TeacherHomeScreen() : const StudentHomeScreen(),
       ),
       GoRoute(
         path: '/practice',

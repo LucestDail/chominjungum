@@ -40,13 +40,13 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
-          const JamminSectionHeader(
+          JamminSectionHeader(
             heading: '이 기기',
-            subheading: '교사가 학생 명단과 연결할 때 쓰는 값입니다.',
+            subheading: '${role.displayName}가 ${role.groupName} 기기와 연결할 때 쓰는 값입니다.',
             center: false,
           ),
           const SizedBox(height: 12),
-          _Row(label: '역할', value: role == AppRole.teacher ? '교사' : '학생'),
+          _Row(label: '역할', value: role.displayName),
           const SizedBox(height: 8),
           deviceId.when(
             data: (id) => _DeviceIdTile(deviceId: id),
@@ -56,7 +56,8 @@ class SettingsScreen extends ConsumerWidget {
 
           // AI 기능은 **교사 기기에서만** 켤 수 있다. 학생 단말은 외부로
           // 아무것도 보내지 않는 것이 이 앱의 전제다.
-          if (role == AppRole.teacher) ...[
+          // AI 는 **허브 기기에서만**(교사·부모). 학생 단말은 외부로 아무것도 안 보낸다
+          if (role.canEnableAi) ...[
             const SizedBox(height: 32),
             const _AiConsentSection(),
           ],

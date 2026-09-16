@@ -121,9 +121,9 @@ class _DictationPracticeScreenState extends ConsumerState<DictationPracticeScree
         // jammin 서버 갱신은 콘텐츠 제작용이라 교사 빌드에만 둔다. 인터넷 없는
         // 교실에서 학생이 이걸 누르면 실패만 보게 되고, 앱의 전제("중앙 서버
         // 없음")와도 어긋난다. 09-07 에 출제가 이 서버에 묶여 통째로 실패한 적이 있다.
-        if (ref.watch(appRoleProvider) == AppRole.teacher)
+        if (ref.watch(appRoleProvider).canFetchContent)
           IconButton(
-            tooltip: '서버에서 다시 불러오기 (교사용)',
+            tooltip: '서버에서 다시 불러오기 (허브 전용)',
             icon: const Icon(Icons.cloud_download_outlined),
             onPressed: () => _refreshFromServer(),
           ),
