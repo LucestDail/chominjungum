@@ -1,3 +1,5 @@
+import '../../services/ai_compose_service.dart';
+import '../../services/ai_consent.dart';
 import '../../domain/app_role.dart';
 import '../../providers/app_role_provider.dart';
 import 'dart:async';
@@ -75,6 +77,10 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
 
   // 서버 업싱크 (옵트인 — 비워두면 교실 모드만 쓴다)
   final _upsync = UpsyncService();
+  final _aiConsent = AiConsent();
+  final _ai = AiComposeService();
+  final _aiTopic = TextEditingController();
+  bool _aiBusy = false;
   final _serverUrl = TextEditingController();
   final _serverToken = TextEditingController();
   final _classroomId = TextEditingController();
@@ -97,6 +103,8 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
     _serverToken.dispose();
     _classroomId.dispose();
     _upsync.close();
+    _ai.close();
+    _aiTopic.dispose();
     _hub?.stop();
     super.dispose();
   }
@@ -502,6 +510,34 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
                   '학습지 전체 ${DictationComposer.maxTotalRows}줄까지',
             ),
           ),
+          const SizedBox(height: 12),
+          // 🔴 AI 는 **선택**이다. 꺼져 있으면 이 줄 자체가 안 보이고, 교사가 직접
+          //    타이핑하는 기존 경로가 그대로 돈다. 네트워크가 없어도 수업은 완결된다.
+          FutureBuilder<bool>(
+            future: _aiConsent.isEnabled(),
+            builder: (context, snap) {
+              if (snap.data != true) return const SizedBox.shrink();
+              return Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _aiTopic,
+                      decoration: const InputDecoration(
+                        labelText: 'AI 로 만들기 — 주제',
+                        hintText: '예: 받침이 있는 낱말',
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton.tonal(
+                    onPressed: _aiBusy ? null : _composeWithAi,
+                    child: Text(_aiBusy ? '만드는 중…' : 'AI 출제'),
+                  ),
+                ],
+              );
+            },
+          ),
           const SizedBox(height: 8),
           HideRulePicker(
             value: _hideRule,
@@ -546,6 +582,62 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
         ],
       ),
     );
+  }
+
+  /// AI 로 받아쓰기 문항을 만들어 입력란에 **채워 넣는다**(덮어쓰지 않는다).
+  ///
+  /// 🔴 세 겹으로 막는다: ①역할이 허브인가 ②동의가 켜져 있는가 ③주소·키가 있는가.
+  ///    하나라도 없으면 **조용히 지나가지 않고** 이유를 보여 준다 —
+  ///    "눌렀는데 아무 일도 안 일어난다" 가 가장 나쁜 실패다.
+  ///
+  /// ⚠️ 결과는 **덧붙인다.** 교사가 이미 쓴 문장을 AI 가 지우면 안 된다.
+  Future<void> _composeWithAi() async {
+    final role = ref.read(appRoleProvider);
+    if (!role.canEnableAi) return; // 학생 기기에서는 버튼 자체가 없다
+
+    final topic = _aiTopic.text.trim();
+    if (topic.isEmpty) {
+      _snack('주제를 적어 주세요 (예: 받침이 있는 낱말)');
+      return;
+    }
+
+    final key = await _aiConsent.apiKey();
+    final url = await _aiConsent.baseUrl();
+    if (key == null || url == null) {
+      _snack('설정에서 AI 를 켜고 게이트웨이 주소와 키를 넣어 주세요');
+      return;
+    }
+
+    setState(() => _aiBusy = true);
+    final r = await _ai.compose(
+      baseUrl: url,
+      apiKey: key,
+      // ⚠️ 학년은 보내는 유일한 맥락이다. 학생 데이터는 여기 들어오지 않는다.
+      gradeLabel: '초등학생',
+      topic: topic,
+      count: 10,
+    );
+    if (!mounted) return;
+    setState(() => _aiBusy = false);
+
+    if (!r.ok) {
+      _snack(r.error!);
+      return;
+    }
+    // 🔴 "응답은 왔는데 규칙을 통과한 문항이 0개" 를 성공으로 보여 주지 않는다
+    if (r.isEmptyAfterFilter) {
+      _snack('쓸 수 있는 문항이 없었습니다 (${DictationComposer.maxGlyphsPerItem}글자 이하 한글만). 주제를 바꿔 보세요');
+      return;
+    }
+
+    final existing = _sentence.text.trimRight();
+    _sentence.text = existing.isEmpty ? r.items.join('\n') : '$existing\n${r.items.join('\n')}';
+    _snack('${r.items.length}문항을 넣었습니다. 확인하고 고쳐 주세요');
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   /// 수업이 끝난 뒤 결과를 종합 서버로 올린다. 비워두면 교실 모드만 쓰는 것이고, 그래도 수업은 완결된다.

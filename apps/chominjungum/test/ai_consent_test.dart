@@ -20,14 +20,14 @@ void main() {
 
   test('켜면 키를 준다', () async {
     final c = AiConsent();
-    await c.enable('sk-test-123');
+    await c.enable('sk-test-123', baseUrl: 'https://gw.test/v1');
     expect(await c.isEnabled(), isTrue);
     expect(await c.apiKey(), 'sk-test-123');
   });
 
   test('🔴꺼져 있으면 키가 있어도 주지 않는다', () async {
     final c = AiConsent();
-    await c.enable('sk-test-123');
+    await c.enable('sk-test-123', baseUrl: 'https://gw.test/v1');
     // 저장소에는 남아 있지만 동의가 꺼진 상태를 흉내낸다.
     await const FlutterSecureStorage()
         .write(key: 'ai_enabled_v1', value: 'false');
@@ -36,14 +36,14 @@ void main() {
 
   test('🔴끄면 키도 함께 지운다', () async {
     final c = AiConsent();
-    await c.enable('sk-test-123');
+    await c.enable('sk-test-123', baseUrl: 'https://gw.test/v1');
     await c.disable();
     expect(await c.isEnabled(), isFalse);
     expect(await c.hasKey(), isFalse, reason: '"꺼 뒀으니 괜찮다"가 아니라 없애는 것이 맞다');
   });
 
   test('빈 키는 거부한다', () async {
-    expect(() => AiConsent().enable('   '), throwsArgumentError);
+    expect(() => AiConsent().enable('   ', baseUrl: 'https://gw.test/v1'), throwsArgumentError);
   });
 
   group('역할 규칙은 호출 지점에서 강제한다', () {
@@ -66,5 +66,29 @@ void main() {
     expect(all, contains('학생 이름'));
     expect(all, contains('교사 기기'));
     expect(AiConsent.consentPoints.length, greaterThanOrEqualTo(4));
+  });
+
+  group('🔴 게이트웨이 주소도 키와 같은 규칙이다 (2026-09-16)', () {
+    test('꺼져 있으면 주소를 주지 않는다', () async {
+      final c = AiConsent();
+      expect(await c.baseUrl(), isNull);
+    });
+
+    test('켜면 주소가 나오고, 끄면 사라진다', () async {
+      final c = AiConsent();
+      await c.enable('K', baseUrl: 'https://gw.test/v1');
+      expect(await c.baseUrl(), 'https://gw.test/v1');
+
+      await c.disable();
+      // 🔴 키만 지우고 주소를 남기면 "무엇에 연결돼 있었는지" 가 기기에 남는다
+      expect(await c.baseUrl(), isNull);
+      expect(await c.apiKey(), isNull);
+    });
+
+    test('⚠️ 주소 없이는 켜지지 않는다 — "켜졌는데 아무것도 안 되는" 상태를 만들지 않는다', () async {
+      final c = AiConsent();
+      expect(() => c.enable('K', baseUrl: '   '), throwsArgumentError);
+      expect(await c.isEnabled(), isFalse);
+    });
   });
 }

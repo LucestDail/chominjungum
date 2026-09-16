@@ -42,6 +42,11 @@ void main() {
           'services/upsync_service.dart',
           // jammin 콘텐츠 갱신 — 교사 빌드에서만 버튼이 뜬다.
           'services/jammin_add_word_service.dart',
+          // AI 출제(2026-09-16) — 허브 기기 + 명시적 동의가 **둘 다** 있어야 부른다.
+          // 🔴 보내는 것은 교사가 고른 **학년·주제뿐**이고 학생 답안·이름·기기 ID 는
+          //    이 경로를 지나가지 않는다(`ai_compose_service_test.dart` 가 강제).
+          // ⚠️ 없어도 수업은 완결된다 — 꺼져 있으면 교사가 직접 입력하는 기존 경로가 돈다.
+          'services/ai_compose_service.dart',
         ]..sort(),
         reason: '학생 경로에 외부 전송이 새로 생겼다. 정말 필요한지 다시 볼 것',
       );

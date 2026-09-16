@@ -67,7 +67,7 @@ void main() {
       expect(await consent.isEnabled(), isFalse, reason: '기본은 꺼짐이어야 한다');
       expect(await consent.apiKey(), isNull);
 
-      await consent.enable('sk-integration-test-key');
+      await consent.enable('sk-integration-test-key', baseUrl: 'https://gw.test/v1');
 
       // 여기가 핵심 — 호스트 테스트는 키체인에 못 쓴다.
       expect(await consent.isEnabled(), isTrue);

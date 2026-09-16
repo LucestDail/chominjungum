@@ -221,6 +221,9 @@ class _AiConsentSection extends StatefulWidget {
 class _AiConsentSectionState extends State<_AiConsentSection> {
   final _consent = AiConsent();
   final _keyField = TextEditingController();
+  /// 게이트웨이 주소 — 2026-09-16 결정: `osh-ai-gateway` 경유.
+  /// ⚠️ 기본값을 박지 않는다. 홈랩 주소는 인프라 정보라 **코드에 두지 않고** 사람이 넣는다.
+  final _urlField = TextEditingController();
   bool _enabled = false;
   bool _loading = true;
 
@@ -235,6 +238,7 @@ class _AiConsentSectionState extends State<_AiConsentSection> {
   @override
   void dispose() {
     _keyField.dispose();
+    _urlField.dispose();
     super.dispose();
   }
 
@@ -242,17 +246,18 @@ class _AiConsentSectionState extends State<_AiConsentSection> {
     AiConsentGuard.assertTeacher(isTeacher: true);
     if (!on) {
       await _consent.disable();
-      if (mounted) setState(() { _enabled = false; _keyField.clear(); });
+      if (mounted) setState(() { _enabled = false; _keyField.clear(); _urlField.clear(); });
       return;
     }
     final key = _keyField.text.trim();
+    final url = _urlField.text.trim();
     if (key.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('API 키를 먼저 입력하세요.')),
       );
       return;
     }
-    await _consent.enable(key);
+    await _consent.enable(key, baseUrl: url);
     if (mounted) setState(() => _enabled = true);
   }
 
@@ -280,6 +285,15 @@ class _AiConsentSectionState extends State<_AiConsentSection> {
             controller: _keyField,
             obscureText: true,
             decoration: const InputDecoration(labelText: 'API 키'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _urlField,
+            decoration: const InputDecoration(
+              labelText: 'AI 게이트웨이 주소',
+              helperText: '예: https://내부게이트웨이/v1 — 키와 함께 이 기기에만 저장되고 끄면 같이 지워집니다',
+              helperMaxLines: 2,
+            ),
           ),
         SwitchListTile(
           key: const Key('settings.aiEnabled'),

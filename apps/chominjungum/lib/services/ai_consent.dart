@@ -23,6 +23,11 @@ class AiConsent {
 
   static const _kEnabled = 'ai_enabled_v1';
   static const _kApiKey = 'ai_api_key_v1';
+  /// 게이트웨이 주소 — **키와 같은 수명**을 갖는다(끄면 함께 지운다).
+  ///
+  /// 🔴 키만 지우고 주소를 남기면 "무엇에 연결돼 있었는지" 가 기기에 계속 남는다.
+  /// 홈랩 주소는 그 자체가 인프라 정보라 같이 없앤다.
+  static const _kBaseUrl = 'ai_base_url_v1';
 
   /// 동의 화면에 **그대로 보여 줄** 문구.
   ///
@@ -56,14 +61,34 @@ class AiConsent {
     }
   }
 
+  /// 게이트웨이 주소. 꺼져 있으면 **주지 않는다**(키와 같은 규칙).
+  Future<String?> baseUrl() async {
+    if (!await isEnabled()) return null;
+    try {
+      final v = await _storage.read(key: _kBaseUrl);
+      return (v == null || v.isEmpty) ? null : v;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// 동의하고 키를 저장한다. **교사 기기에서만** 부를 것
   /// ([AiConsentGuard.assertTeacher] 로 강제).
-  Future<void> enable(String apiKey) async {
+  ///
+  /// @param baseUrl `osh-ai-gateway` 주소(2026-09-16 결정: 게이트웨이 경유).
+  ///        ⚠️ 비어 있으면 **켜지 않는다** — 주소 없이 켜면 "켜졌는데 아무것도 안 되는"
+  ///        상태가 되고, 사용자는 이유를 모른다.
+  Future<void> enable(String apiKey, {required String baseUrl}) async {
     final key = apiKey.trim();
+    final url = baseUrl.trim();
     if (key.isEmpty) {
       throw ArgumentError('API 키가 비어 있습니다.');
     }
+    if (url.isEmpty) {
+      throw ArgumentError('게이트웨이 주소가 비어 있습니다.');
+    }
     await _storage.write(key: _kApiKey, value: key);
+    await _storage.write(key: _kBaseUrl, value: url);
     await _storage.write(key: _kEnabled, value: 'true');
   }
 
@@ -72,6 +97,8 @@ class AiConsent {
     // 키를 먼저 지운다 — 중간에 실패해도 "켜져 있는데 키 없음"이 낫다
     // (그 상태는 아무것도 못 보낸다). 반대면 "꺼진 줄 알았는데 키가 남는다".
     await _storage.delete(key: _kApiKey);
+    // 주소도 함께 — 무엇에 연결돼 있었는지가 기기에 남지 않게
+    await _storage.delete(key: _kBaseUrl);
     await _storage.write(key: _kEnabled, value: 'false');
   }
 
