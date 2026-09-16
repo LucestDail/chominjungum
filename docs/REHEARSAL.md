@@ -186,3 +186,39 @@ xcrun devicectl device install app --device <학생 UDID> \
 - 기기의 앱은 지워도 된다(무료 프로비저닝은 7일 뒤 어차피 만료)
 - **결과를 `PLAN.md` 에 남긴다** — 통과한 것, 어긋난 것, 현장에서만 알 수 있던 것.
   특히 **Wi-Fi 격리 여부**는 배포 전략을 바꾸므로 꼭 기록할 것
+
+---
+
+## 리허설 뒤에 할 일 — 손글씨 네이티브 꽂기 (2026-09-16 예약)
+
+리허설이 **끝난 뒤**에 한다. 지금 하면 시뮬레이터 빌드가 깨져 리허설 자체를 못 한다.
+
+### 왜 미뤘나
+
+ML Kit 파드 전체(`GoogleMLKit`·`MLKitCommon`·`MLKitVision`)가 **arm64 시뮬레이터
+슬라이스를 제공하지 않는다**(iOS 26+ Apple Silicon). 이 저장소는 실기기가 한 대뿐이라
+교실 왕복 검증을 **시뮬레이터 허브 ↔ 실기기 학생**으로 치러 왔다(`PLAN §204`).
+
+### 이미 되어 있는 것
+
+| | |
+|---|---|
+| 획 → 잉크 변환 | `InkBuilder.fromOffsets` — 촘촘한 점 솎기·NaN 제거·시각 부여 |
+| 칸 밖 판정 | `InkBuilder.fitsInArea` — "왜 못 알아듣지" 의 원인을 코드가 가른다 |
+| 계약 | `HandwritingRecognizer` + `HandwritingResult` |
+| 기본 구현 | `UnavailableHandwritingRecognizer` — **"없다" 고 정직하게 답한다** |
+| 테스트 | 19건. 좌표를 다루는 구간이 전부 잠겨 있다 |
+
+### 금요일에 할 것
+
+1. `pubspec.yaml` 에 `google_mlkit_digital_ink_recognition` 추가
+2. `MlKitHandwritingRecognizer implements HandwritingRecognizer` 작성 —
+   `ink.toPayload()` 를 ML Kit `Ink` 로 옮기는 것뿐이다
+3. 🔴 **한국어 모델을 내려받는 UI** — `ko` 모델은 따로 받아야 하고 교실에 인터넷이 없으면
+   그 시점에 실패한다. "설치돼 있다" 와 "쓸 수 있다" 는 다르다
+4. ⚠️ **`handwriting_ink_test.dart` 의 씨앗 순수성 테스트를 고친다** — 새 구현 파일은
+   당연히 외부 패키지를 쓰므로 **면제하되 이유를 적는다**(씨앗 두 파일은 계속 순수해야 한다)
+5. iOS `Podfile` 에 시뮬레이터 대응을 넣을지 판단 —
+   `EXCLUDED_ARCHS[sdk=iphonesimulator*] = arm64`(Rosetta 로 돌아간다) vs 실기기 전용
+6. ⚠️ **채점에는 쓰지 않는다.** 인식은 **보조**이고 채점은 지금처럼
+   `DictationCompare` 가 타이핑 입력으로 한다 — 틀릴 수 있는 것으로 점수를 매기면 안 된다
